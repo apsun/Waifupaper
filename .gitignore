@@ -19,5 +19,10 @@ gradle/
 gradlew
 gradlew.bat
 
-# Mac
+# Other
 .DS_Store
+desktop.ini
+Thumbs.db
+
+# Assets (for now)
+assets/

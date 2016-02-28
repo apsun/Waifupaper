@@ -4,6 +4,18 @@
     package="com.crossbowffs.waifupaper">
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" />
     <application
-        android:label="Waifupaper">
+        android:label="Waifupaper"
+        android:icon="@mipmap/ic_launcher">
+        <service
+            android:name=".app.LiveWallpaperService"
+            android:label="Waifupaper"
+            android:permission="android.permission.BIND_WALLPAPER">
+            <intent-filter>
+                <action android:name="android.service.wallpaper.WallpaperService" />
+            </intent-filter>
+            <meta-data
+                android:name="android.service.wallpaper"
+                android:resource="@xml/wallpaper" />
+        </service>
     </application>
 </manifest>
