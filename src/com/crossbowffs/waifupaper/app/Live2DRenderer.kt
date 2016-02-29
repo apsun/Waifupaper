@@ -1,23 +1,13 @@
-/**
-
- * You can modify and use this source freely
- * only for the development of application related Live2D.
-
- * (c) Live2D Inc. All rights reserved.
- */
 package com.crossbowffs.waifupaper.app
 
 import android.content.Context
 import com.crossbowffs.waifupaper.loader.Live2DExpressionWrapper
 import com.crossbowffs.waifupaper.loader.Live2DModelLoader
-import com.crossbowffs.waifupaper.loader.Live2DMotionWrapper
-import com.crossbowffs.waifupaper.loader.Live2DUnboundModelData
+import com.crossbowffs.waifupaper.loader.Live2DModelWrapper
+import com.crossbowffs.waifupaper.loader.Live2DMotionGroupWrapper
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.android.UtOpenGL
-import jp.live2d.framework.L2DPhysics
-import jp.live2d.framework.L2DPose
-import jp.live2d.framework.L2DStandardID
-import jp.live2d.framework.L2DTargetPoint
+import jp.live2d.framework.*
 import jp.live2d.motion.Live2DMotion
 import jp.live2d.motion.MotionQueueManager
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
@@ -28,7 +18,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
 
     private val motionMgr: MotionQueueManager
     private val dragMgr: L2DTargetPoint
-    private var modelData: Live2DUnboundModelData? = null
+    private var modelWrapper: Live2DModelWrapper? = null
     private var motionIndex: Int = -1
     private var subMotionIndex: Int = -1
 
@@ -38,31 +28,34 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     }
 
     private val hasModel: Boolean
-        get() = modelData != null
+        get() = modelWrapper != null
 
     private val model: Live2DModelAndroid
-        get() = modelData!!.model
+        get() = modelWrapper!!.model
 
     private val physics: L2DPhysics?
-        get() = modelData!!.physics
+        get() = modelWrapper!!.physics
 
     private val pose: L2DPose?
-        get() = modelData!!.pose
+        get() = modelWrapper!!.pose
 
     private val expressions: Array<Live2DExpressionWrapper>?
-        get() = modelData!!.expressions
+        get() = modelWrapper!!.expressions
 
-    private val motions: Array<Live2DMotionWrapper>?
-        get() = modelData!!.motions
+    private val layoutMatrix: L2DModelMatrix
+        get() = modelWrapper!!.layoutMatrix
+
+    private val motions: Array<Live2DMotionGroupWrapper>?
+        get() = modelWrapper!!.motionGroups
 
     fun chooseMotion(): Live2DMotion {
         var currMotion = motions!![motionIndex]
-        if (++subMotionIndex == currMotion.submotions.size) {
+        if (++subMotionIndex == currMotion.motions.size) {
             subMotionIndex = 0
-            motionIndex = (motionIndex + 1) % currMotion.submotions.size
+            motionIndex = (motionIndex + 1) % currMotion.motions.size
             currMotion = motions!![motionIndex]
         }
-        return currMotion.submotions[subMotionIndex].motion
+        return currMotion.motions[subMotionIndex].motion
     }
 
     override fun onDrawFrame(gl: GL10) {
@@ -98,9 +91,14 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         model.addToParamFloat(L2DStandardID.PARAM_BODY_ANGLE_X, dragX * 30)
 
         physics?.updateParam(model)
+        pose?.updateParam(model)
 
         model.update()
+        // TODO: For some reason this doesn't work
+        // gl.glPushMatrix()
+        // gl.glMultMatrixf(layoutMatrix.array, 0)
         model.draw()
+        // gl.glPopMatrix()
     }
 
     override fun onSurfaceChanged(gl: GL10, width: Int, height: Int) {
@@ -129,7 +127,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             val textureNum = UtOpenGL.buildMipmap(gl, newModelData.textures[i])
             newModelData.model.setTexture(i, textureNum)
         }
-        modelData = newModelData
+        modelWrapper = newModelData
         motionIndex = 0
         subMotionIndex = 0
     }
@@ -138,11 +136,11 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         motionIndex = -1
         subMotionIndex = -1
         motionMgr.stopAllMotions()
-        if (modelData != null) {
-            val model = modelData!!.model
+        if (modelWrapper != null) {
+            val model = modelWrapper!!.model
             model.deleteTextures()
             model.setGL(null)
-            modelData = null
+            modelWrapper = null
         }
     }
 

@@ -1,4 +1,4 @@
-package com.crossbowffs.waifupaper.loader
+package com.crossbowffs.waifupaper.utils
 
 import jp.live2d.util.Json
 
