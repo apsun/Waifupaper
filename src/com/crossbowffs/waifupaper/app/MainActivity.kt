@@ -24,10 +24,10 @@ class MainActivity : PrivilegedActivity() {
 
     private fun showPermissionRequestDialog() {
         AlertDialog.Builder(this)
-            .setTitle("I can haz permissions?")
-            .setMessage("To use 3rd party models, we'll need permissions to read your external storage!")
+            .setTitle(R.string.req_permission_dialog_title)
+            .setMessage(R.string.req_permission_dialog_message)
             .setCancelable(false)
-            .setPositiveButton("Got it!") { v, i ->
+            .setPositiveButton(R.string.ok) { v, i ->
                 runPrivilegedAction(REQUEST_STORAGE_READ, PERMISSION_READ_STORAGE)
             }
             .show()

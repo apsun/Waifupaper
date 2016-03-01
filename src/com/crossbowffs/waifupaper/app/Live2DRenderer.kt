@@ -13,9 +13,12 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer {
+    private val ENABLE_SOUNDS = true
+
     private val motionMgr: MotionQueueManager
     private val dragMgr: L2DTargetPoint
     private var modelWrapper: Live2DModelWrapper? = null
+    private var soundPool: SoundPoolWrapper? = null
     private var motionIndex: Int = -1
     private var subMotionIndex: Int = -1
 
@@ -45,11 +48,9 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     private val motions: Array<Live2DMotionGroupWrapper>?
         get() = modelWrapper!!.motionGroups
 
-    private val soundPool: SoundPoolWrapper?
-        get() = modelWrapper!!.soundPool
-
-    fun playSoundsForMotion() {
-        motions!![motionIndex].motions[subMotionIndex].soundId.useNotNull {
+    fun playSoundForMotion() {
+        if (soundPool == null) return
+        motions!![motionIndex].motions[subMotionIndex].soundFilePath.useNotNull {
             soundPool!!.playSound(it)
         }
     }
@@ -61,7 +62,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             motionIndex = (motionIndex + 1) % currMotion.motions.size
             currMotion = motions!![motionIndex]
         }
-        playSoundsForMotion()
+        playSoundForMotion()
         return currMotion.motions[subMotionIndex].motion
     }
 
@@ -123,17 +124,29 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     }
 
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
-        setModel(gl, "shizuku")
+        if (modelWrapper == null) {
+            setModel(gl, "shizuku")
+        } else {
+            loadGLTextures(gl, modelWrapper!!)
+        }
+    }
+
+    fun loadGLTextures(gl: GL10, modelData: Live2DModelWrapper) {
+        modelData.model.setGL(gl)
+        for (i in modelData.textures.indices) {
+            val textureNum = UtOpenGL.buildMipmap(gl, modelData.textures[i], false)
+            modelData.model.setTexture(i, textureNum)
+        }
     }
 
     fun setModel(gl: GL10, name: String) {
         release()
-        val newModelData = Live2DModelLoader.loadInternal(context, name, true)
-        newModelData.model.setGL(gl)
-        for (i in newModelData.textures.indices) {
-            val textureNum = UtOpenGL.buildMipmap(gl, newModelData.textures[i])
-            newModelData.model.setTexture(i, textureNum)
+        val newModelInfo = Live2DModelLoader.loadInternalInfo(context, name)
+        val newModelData = Live2DModelLoader.loadInternalModel(context, newModelInfo)
+        if (ENABLE_SOUNDS) {
+            soundPool = Live2DModelLoader.loadInternalSounds(context, newModelInfo)
         }
+        loadGLTextures(gl, newModelData)
         modelWrapper = newModelData
         motionIndex = 0
         subMotionIndex = 0
@@ -147,7 +160,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             val model = modelWrapper!!.model
             model.deleteTextures()
             model.setGL(null)
-            modelWrapper!!.close()
+            soundPool?.release()
             modelWrapper = null
         }
     }

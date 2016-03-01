@@ -10,7 +10,7 @@ import jp.live2d.motion.Live2DMotion
 
 class Live2DMotionWrapper(
     val motion: Live2DMotion,
-    val soundId: Int?,
+    val soundFilePath: String?,
     val fadeInDuration: Int?,
     val fadeOutDuration: Int?
 )
@@ -27,8 +27,7 @@ class Live2DExpressionWrapper(
 
 /**
  * This class holds data for Live2D models that does not depend
- * on an OpenGL context. You must close this object when you are
- * done using it.
+ * on an OpenGL context.
  */
 class Live2DModelWrapper(
     val name: String,
@@ -38,10 +37,5 @@ class Live2DModelWrapper(
     val pose: L2DPose?,
     val expressions: Array<Live2DExpressionWrapper>?,
     val layoutMatrix: L2DModelMatrix,
-    val motionGroups: Array<Live2DMotionGroupWrapper>?,
-    val soundPool: SoundPoolWrapper?
-) : AutoCloseable {
-    override fun close() {
-        soundPool?.release()
-    }
-}
+    val motionGroups: Array<Live2DMotionGroupWrapper>?
+)

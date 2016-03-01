@@ -119,30 +119,23 @@ object Live2DModelLoader {
         return matrix
     }
 
-    private fun loadMotionsAndSound(loader: FileLoaderWrapper,
-                                    motionGroupInfos: Array<Live2DMotionGroupInfo>?,
-                                    loadSound: Boolean): Pair<Array<Live2DMotionGroupWrapper>, SoundPoolWrapper?>? {
-        // TODO: Clean up this method
+    private fun loadMotions(loader: FileLoaderWrapper, motionGroupInfos: Array<Live2DMotionGroupInfo>?): Array<Live2DMotionGroupWrapper>? {
         if (motionGroupInfos == null) return null
-        val soundPool = if (loadSound) SoundPoolWrapper() else null
-        return Pair(motionGroupInfos.map { motion ->
+        return motionGroupInfos.map { motion ->
             Live2DMotionGroupWrapper(
                 motion.name,
                 motion.motions.map { params ->
                     loader.openStream(params.filePath).use {
                         Live2DMotionWrapper(
                             Live2DMotion.loadMotion(it),
-                            soundPool.useNotNull { sp ->
-                                params.soundFilePath.useNotNull {
-                                    sp.loadSound(loader, it)
-                                }
-                            },
+                            params.soundFilePath,
                             params.fadeInDuration,
                             params.fadeOutDuration
                         )
                     }
-                }.toTypedArray())
-        }.toTypedArray(), soundPool)
+                }.toTypedArray()
+            )
+        }.toTypedArray()
     }
 
     private fun loadInfo(loader: FileLoaderWrapper, name: String): Live2DModelInfo {
@@ -155,10 +148,9 @@ object Live2DModelLoader {
         }
     }
 
-    private fun load(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo, loadSound: Boolean): Live2DModelWrapper {
+    private fun loadModel(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): Live2DModelWrapper {
         try {
             val model = loadModel(loader, modelInfo.modelPath)
-            val motionsAndSound = loadMotionsAndSound(loader, modelInfo.motionGroupInfos, loadSound)
             return Live2DModelWrapper(
                 modelInfo.name,
                 model,
@@ -167,48 +159,26 @@ object Live2DModelLoader {
                 loadPose(loader, modelInfo.posePath),
                 loadExpressions(loader, modelInfo.expressionInfos),
                 parseLayout(model, modelInfo.layoutInfo),
-                motionsAndSound.useNotNull { it.first },
-                motionsAndSound.useNotNull { it.second }
+                loadMotions(loader, modelInfo.motionGroupInfos)
             )
         } catch (e: Exception) {
             throw Live2DModelLoadException(e)
         }
     }
 
-    private fun load(loader: FileLoaderWrapper, name: String, loadSound: Boolean): Live2DModelWrapper {
-        val modelInfo = try {
-            loadInfo(loader, name)
-        } catch (e: Exception) {
-            throw Live2DModelLoadException(e)
+    private fun loadSounds(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
+        if (modelInfo.motionGroupInfos == null) return null
+        val soundPool = SoundPoolWrapper()
+        modelInfo.motionGroupInfos.forEach {
+            it.motions.forEach {
+                it.soundFilePath.useNotNull { soundPool.loadSound(loader, it) }
+            }
         }
-        return load(loader, modelInfo, loadSound)
+        return soundPool
     }
 
     private fun wrapModelLoader(loader: FileLoader, name: String): FileLoaderWrapper {
         return FileLoaderWrapper(loader, File(MODELS_DIR_NAME, name).path)
-    }
-
-    /**
-     * Loads an unbound Live2D model from external storage.
-     *
-     * @param name The name of the model.
-     * @param loadSound Whether to load sound resources.
-     */
-    fun loadExternal(name: String, loadSound: Boolean): Live2DModelWrapper {
-        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), name)
-        return load(loader, name, loadSound)
-    }
-
-    /**
-     * Loads an unbound Live2D model from internal storage (assets).
-     *
-     * @param context A context instance used to access app assets.
-     * @param name The name of the model.
-     * @param loadSound Whether to load sound resources.
-     */
-    fun loadInternal(context: Context, name: String, loadSound: Boolean): Live2DModelWrapper {
-        val loader = wrapModelLoader(AssetFileLoader(context), name)
-        return load(loader, name, loadSound)
     }
 
     /**
@@ -234,6 +204,49 @@ object Live2DModelLoader {
     fun loadInternalInfo(context: Context, name: String): Live2DModelInfo {
         val loader = wrapModelLoader(AssetFileLoader(context), name)
         return loadInfo(loader, name)
+    }
+
+    /**
+     * Loads an unbound Live2D model from external storage.
+     *
+     * @param modelInfo The model to load.
+     */
+    fun loadExternalModel(modelInfo: Live2DModelInfo): Live2DModelWrapper {
+        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), modelInfo.name)
+        return loadModel(loader, modelInfo)
+    }
+
+    /**
+     * Loads an unbound Live2D model from internal storage (assets).
+     *
+     * @param context A context instance used to access app assets.
+     * @param modelInfo The model to load.
+     */
+    fun loadInternalModel(context: Context, modelInfo: Live2DModelInfo): Live2DModelWrapper {
+        val loader = wrapModelLoader(AssetFileLoader(context), modelInfo.name)
+        return loadModel(loader, modelInfo)
+    }
+
+    /**
+     * Loads Live2D motion sounds from external storage. If the model
+     * does have any motion groups, {@code null} will be returned.
+     *
+     * @param modelInfo The model to load sounds for.
+     */
+    fun loadExternalSounds(modelInfo: Live2DModelInfo): SoundPoolWrapper? {
+        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), modelInfo.name)
+        return loadSounds(loader, modelInfo)
+    }
+
+    /**
+     * Loads Live2D motion sounds from internal storage. If the model
+     * does have any motion groups, {@code null} will be returned.
+     *
+     * @param modelInfo The model to load sounds for.
+     */
+    fun loadInternalSounds(context: Context, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
+        val loader = wrapModelLoader(AssetFileLoader(context), modelInfo.name)
+        return loadSounds(loader, modelInfo)
     }
 
     /**

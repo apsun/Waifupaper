@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Waifupaper</string>
+
+    <!-- General -->
+    <string name="ok">OK</string>
+    <string name="delete">Delete</string>
+    <string name="edit">Edit</string>
+    <string name="enable">Enable</string>
+    <string name="reboot">Reboot</string>
+    <string name="about">About</string>
+    <string name="ignore">Ignore</string>
+    <string name="close">Close</string>
+    <string name="restore">Restore</string>
+    <string name="undo">Undo</string>
+    <string name="cancel">Cancel</string>
+
+    <string name="req_permission_dialog_title">I can haz permissions?</string>
+    <string name="req_permission_dialog_message">
+        To use 3rd party models, we\'ll need permissions to read your external storage!\n\n
+        If you choose not to grant these permissions, you will only be able to use models
+        bundled with the app.
+    </string>
+</resources>
