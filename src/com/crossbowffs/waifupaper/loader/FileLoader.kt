@@ -1,6 +1,7 @@
 package com.crossbowffs.waifupaper.loader
 
 import android.content.Context
+import android.content.res.AssetFileDescriptor
 import android.os.Environment
 import android.os.ParcelFileDescriptor
 import com.crossbowffs.waifupaper.utils.join
@@ -30,7 +31,7 @@ abstract class FileLoader {
      * Creates a file descriptor the the file at the specified path.
      * The caller is responsible for closing the file descriptor.
      */
-    abstract fun openFileDescriptor(path: String): MultiFileDescriptor
+    abstract fun openFileDescriptor(path: String): AssetFileDescriptor
 
     /**
      * Returns a list of file/subdirectory names in the specified directory.
@@ -52,8 +53,8 @@ class AssetFileLoader(private val context: Context): FileLoader() {
         return context.assets.open(path)
     }
 
-    override fun openFileDescriptor(path: String): MultiFileDescriptor {
-        return MultiFileDescriptor(context.assets.openFd(path))
+    override fun openFileDescriptor(path: String): AssetFileDescriptor {
+        return context.assets.openFd(path)
     }
 
     override fun enumerate(path: String): Array<String> {
@@ -77,10 +78,10 @@ class ExternalFileLoader(private val basePath: String): FileLoader() {
         return FileInputStream(extDir.join(basePath, path))
     }
 
-    override fun openFileDescriptor(path: String): MultiFileDescriptor {
+    override fun openFileDescriptor(path: String): AssetFileDescriptor {
         val extDir = Environment.getExternalStorageDirectory()
         val descriptor = ParcelFileDescriptor.open(extDir.join(basePath, path), ParcelFileDescriptor.MODE_READ_ONLY)
-        return MultiFileDescriptor(descriptor)
+        return AssetFileDescriptor(descriptor, 0, AssetFileDescriptor.UNKNOWN_LENGTH)
     }
 
     override fun enumerate(path: String): Array<String> {
@@ -105,7 +106,7 @@ class FileLoaderWrapper(private val loader: FileLoader, private val basePath: St
         return loader.openStream(File(basePath, path).path)
     }
 
-    override fun openFileDescriptor(path: String): MultiFileDescriptor {
+    override fun openFileDescriptor(path: String): AssetFileDescriptor {
         return loader.openFileDescriptor(File(basePath, path).path)
     }
 

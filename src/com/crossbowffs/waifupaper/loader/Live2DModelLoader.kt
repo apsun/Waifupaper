@@ -119,10 +119,12 @@ object Live2DModelLoader {
         return matrix
     }
 
-    private fun loadMotionsAndSound(loader: FileLoaderWrapper, motionGroupInfos: Array<Live2DMotionGroupInfo>?):
-            Pair<Array<Live2DMotionGroupWrapper>, SoundPoolWrapper>? {
+    private fun loadMotionsAndSound(loader: FileLoaderWrapper,
+                                    motionGroupInfos: Array<Live2DMotionGroupInfo>?,
+                                    loadSound: Boolean): Pair<Array<Live2DMotionGroupWrapper>, SoundPoolWrapper?>? {
+        // TODO: Clean up this method
         if (motionGroupInfos == null) return null
-        val soundManager = SoundPoolWrapper()
+        val soundPool = if (loadSound) SoundPoolWrapper() else null
         return Pair(motionGroupInfos.map { motion ->
             Live2DMotionGroupWrapper(
                 motion.name,
@@ -130,13 +132,17 @@ object Live2DModelLoader {
                     loader.openStream(params.filePath).use {
                         Live2DMotionWrapper(
                             Live2DMotion.loadMotion(it),
-                            params.soundFilePath.useNotNull { soundManager.loadSound(loader, it) },
+                            soundPool.useNotNull { sp ->
+                                params.soundFilePath.useNotNull {
+                                    sp.loadSound(loader, it)
+                                }
+                            },
                             params.fadeInDuration,
                             params.fadeOutDuration
                         )
                     }
                 }.toTypedArray())
-        }.toTypedArray(), soundManager)
+        }.toTypedArray(), soundPool)
     }
 
     private fun loadInfo(loader: FileLoaderWrapper, name: String): Live2DModelInfo {
@@ -149,10 +155,10 @@ object Live2DModelLoader {
         }
     }
 
-    private fun load(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): Live2DModelWrapper {
+    private fun load(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo, loadSound: Boolean): Live2DModelWrapper {
         try {
             val model = loadModel(loader, modelInfo.modelPath)
-            val motionsAndSound = loadMotionsAndSound(loader, modelInfo.motionGroupInfos)!!
+            val motionsAndSound = loadMotionsAndSound(loader, modelInfo.motionGroupInfos, loadSound)
             return Live2DModelWrapper(
                 modelInfo.name,
                 model,
@@ -169,13 +175,13 @@ object Live2DModelLoader {
         }
     }
 
-    private fun load(loader: FileLoaderWrapper, name: String): Live2DModelWrapper {
+    private fun load(loader: FileLoaderWrapper, name: String, loadSound: Boolean): Live2DModelWrapper {
         val modelInfo = try {
             loadInfo(loader, name)
         } catch (e: Exception) {
             throw Live2DModelLoadException(e)
         }
-        return load(loader, modelInfo)
+        return load(loader, modelInfo, loadSound)
     }
 
     private fun wrapModelLoader(loader: FileLoader, name: String): FileLoaderWrapper {
@@ -186,10 +192,11 @@ object Live2DModelLoader {
      * Loads an unbound Live2D model from external storage.
      *
      * @param name The name of the model.
+     * @param loadSound Whether to load sound resources.
      */
-    fun loadExternal(name: String): Live2DModelWrapper {
+    fun loadExternal(name: String, loadSound: Boolean): Live2DModelWrapper {
         val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), name)
-        return load(loader, name)
+        return load(loader, name, loadSound)
     }
 
     /**
@@ -197,10 +204,11 @@ object Live2DModelLoader {
      *
      * @param context A context instance used to access app assets.
      * @param name The name of the model.
+     * @param loadSound Whether to load sound resources.
      */
-    fun loadInternal(context: Context, name: String): Live2DModelWrapper {
+    fun loadInternal(context: Context, name: String, loadSound: Boolean): Live2DModelWrapper {
         val loader = wrapModelLoader(AssetFileLoader(context), name)
-        return load(loader, name)
+        return load(loader, name, loadSound)
     }
 
     /**

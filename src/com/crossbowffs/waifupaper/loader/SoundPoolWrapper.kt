@@ -18,12 +18,7 @@ class SoundPoolWrapper {
     }
 
     fun loadSound(loader: FileLoaderWrapper, path: String): Int {
-        return loader.openFileDescriptor(path).use { fileDescriptor ->
-            fileDescriptor
-                .withAssetConsumer { soundPool.load(it, 1) }
-                .withParcelConsumer { soundPool.load(it.fileDescriptor, 0, it.statSize, 1) }
-                .get()
-        }
+        return loader.openFileDescriptor(path).use { it -> soundPool.load(it, 1) }
     }
 
     fun playSound(soundId: Int): Int {

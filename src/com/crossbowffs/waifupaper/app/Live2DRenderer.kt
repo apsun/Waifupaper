@@ -128,7 +128,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
 
     fun setModel(gl: GL10, name: String) {
         release()
-        val newModelData = Live2DModelLoader.loadInternal(context, name)
+        val newModelData = Live2DModelLoader.loadInternal(context, name, true)
         newModelData.model.setGL(gl)
         for (i in newModelData.textures.indices) {
             val textureNum = UtOpenGL.buildMipmap(gl, newModelData.textures[i])
