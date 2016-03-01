@@ -1,10 +1,7 @@
 package com.crossbowffs.waifupaper.app
 
 import android.content.Context
-import com.crossbowffs.waifupaper.loader.Live2DExpressionWrapper
-import com.crossbowffs.waifupaper.loader.Live2DModelLoader
-import com.crossbowffs.waifupaper.loader.Live2DModelWrapper
-import com.crossbowffs.waifupaper.loader.Live2DMotionGroupWrapper
+import com.crossbowffs.waifupaper.loader.*
 import com.crossbowffs.waifupaper.utils.useNotNull
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.android.UtOpenGL
@@ -48,12 +45,12 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     private val motions: Array<Live2DMotionGroupWrapper>?
         get() = modelWrapper!!.motionGroups
 
-    private val soundManager: SoundManager?
-        get() = modelWrapper!!.soundManager
+    private val soundPool: SoundPoolWrapper?
+        get() = modelWrapper!!.soundPool
 
     fun playSoundsForMotion() {
         motions!![motionIndex].motions[subMotionIndex].soundId.useNotNull {
-            soundManager!!.playSound(it)
+            soundPool!!.playSound(it)
         }
     }
 
@@ -150,7 +147,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             val model = modelWrapper!!.model
             model.deleteTextures()
             model.setGL(null)
-            modelWrapper!!.soundManager?.release()
+            modelWrapper!!.close()
             modelWrapper = null
         }
     }

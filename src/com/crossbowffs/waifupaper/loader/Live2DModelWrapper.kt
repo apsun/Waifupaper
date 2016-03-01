@@ -1,7 +1,6 @@
 package com.crossbowffs.waifupaper.loader
 
 import android.graphics.Bitmap
-import com.crossbowffs.waifupaper.app.SoundManager
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.framework.L2DExpressionMotion
 import jp.live2d.framework.L2DModelMatrix
@@ -28,7 +27,8 @@ class Live2DExpressionWrapper(
 
 /**
  * This class holds data for Live2D models that does not depend
- * on an OpenGL context.
+ * on an OpenGL context. You must close this object when you are
+ * done using it.
  */
 class Live2DModelWrapper(
     val name: String,
@@ -39,5 +39,9 @@ class Live2DModelWrapper(
     val expressions: Array<Live2DExpressionWrapper>?,
     val layoutMatrix: L2DModelMatrix,
     val motionGroups: Array<Live2DMotionGroupWrapper>?,
-    val soundManager: SoundManager?
-)
+    val soundPool: SoundPoolWrapper?
+) : AutoCloseable {
+    override fun close() {
+        soundPool?.release()
+    }
+}

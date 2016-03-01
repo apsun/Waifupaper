@@ -1,15 +1,14 @@
-package com.crossbowffs.waifupaper.app
+package com.crossbowffs.waifupaper.loader
 
 import android.media.AudioAttributes
 import android.media.SoundPool
-import com.crossbowffs.waifupaper.loader.FileLoaderWrapper
 
-class SoundManager {
+class SoundPoolWrapper {
     private val soundPool: SoundPool
 
     init {
         soundPool = SoundPool.Builder()
-            .setMaxStreams(50)
+            .setMaxStreams(1)
             .setAudioAttributes(
                 AudioAttributes.Builder()
                     .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)

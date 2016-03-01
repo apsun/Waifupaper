@@ -3,7 +3,6 @@ package com.crossbowffs.waifupaper.loader
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
-import com.crossbowffs.waifupaper.app.SoundManager
 import com.crossbowffs.waifupaper.utils.*
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.framework.L2DExpressionMotion
@@ -121,9 +120,9 @@ object Live2DModelLoader {
     }
 
     private fun loadMotionsAndSound(loader: FileLoaderWrapper, motionGroupInfos: Array<Live2DMotionGroupInfo>?):
-            Pair<Array<Live2DMotionGroupWrapper>, SoundManager>? {
+            Pair<Array<Live2DMotionGroupWrapper>, SoundPoolWrapper>? {
         if (motionGroupInfos == null) return null
-        val soundManager = SoundManager()
+        val soundManager = SoundPoolWrapper()
         return Pair(motionGroupInfos.map { motion ->
             Live2DMotionGroupWrapper(
                 motion.name,
@@ -235,19 +234,22 @@ object Live2DModelLoader {
      *
      * @param context A context instance used to access app assets.
      */
-    fun enumerateModels(context: Context): Array<Live2DModelInfo> {
+    fun enumerateModels(context: Context, loadExternal: Boolean): Array<Live2DModelInfo> {
         val internalLoader = AssetFileLoader(context)
         val externalLoader = ExternalFileLoader(EXTERNAL_DIR_NAME)
-        val internalModels = internalLoader.enumerate(MODELS_DIR_NAME).map {
+        var models = internalLoader.enumerate(MODELS_DIR_NAME).map {
             loadInternalInfo(context, it)
         }
-        val externalModels = externalLoader.enumerate(MODELS_DIR_NAME).mapNotNull {
-            try {
-                loadExternalInfo(it)
-            } catch (e: Exception) {
-                null
-            }
+        if (loadExternal) {
+            models = models.plus(externalLoader.enumerate(MODELS_DIR_NAME).mapNotNull {
+                try {
+                    loadExternalInfo(it)
+                } catch (e: Exception) {
+                    loge("Failed to load model", e)
+                    null
+                }
+            })
         }
-        return internalModels.plus(externalModels).toTypedArray()
+        return models.toTypedArray()
     }
 }

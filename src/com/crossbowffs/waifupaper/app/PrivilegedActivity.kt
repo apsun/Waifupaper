@@ -6,6 +6,12 @@ import android.support.v4.content.ContextCompat
 import android.support.v7.app.AppCompatActivity
 
 abstract class PrivilegedActivity : AppCompatActivity() {
+    fun hasPermissions(vararg permissions: String): Boolean {
+        return permissions.all {
+            ContextCompat.checkSelfPermission(this, it) == PackageManager.PERMISSION_GRANTED
+        }
+    }
+
     fun runPrivilegedAction(requestCode: Int, vararg permissions: String) {
         for (permission in permissions) {
             val permissionStatus = ContextCompat.checkSelfPermission(this, permission)
