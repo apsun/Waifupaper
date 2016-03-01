@@ -1,36 +1,26 @@
 package com.crossbowffs.waifupaper.app
 
-class RelativeRotationGyro {
-    private val freeRollLimit: Double
-    private val freePitchLimit: Double
-    private val maxRevertRate: Double
-    private val magTimeConst: Double
-    private val revertTimeConst: Double
-    private val revertRotConst: Double
+class RelativeRotationGyro(
+        val freeRollLimit: Double,
+        val freePitchLimit: Double,
+        val maxRevertRate: Double,
+        val magTimeConst: Double,
+        val revertTimeConst: Double,
+        val revertRotConst: Double) {
 
     private var relativeRoll: Double = 0.0
     private var relativePitch: Double = 0.0
 
-    private var prevTimeStamp: Long = 0L
+    private var prevTimeStampNs: Long = 0L
     private var magRollAcc: Double = 0.0
     private var magPitchAcc: Double = 0.0
     private var rollRevertRate: Double = 0.0
     private var pitchRevertRate: Double = 0.0
     private var freeRotation: Boolean = true
 
-    constructor(freeRollLimit: Double, freePitchLimit: Double, maxRevertRate: Double,
-                magTimeConst: Double, revertTimeConst: Double, revertRotConst: Double) {
-        this.freeRollLimit = freeRollLimit
-        this.freePitchLimit = freePitchLimit
-        this.maxRevertRate = maxRevertRate
-        this.magTimeConst = magTimeConst
-        this.revertTimeConst = revertTimeConst
-        this.revertRotConst = revertRotConst
-    }
-
-    fun update(gyroX: Float, gyroY: Float, gyroZ: Float, timeStamp: Long) {
-        if (prevTimeStamp != 0L) {
-            val dTime = 0.000000001f * (timeStamp - prevTimeStamp)
+    fun update(gyroX: Float, gyroY: Float, gyroZ: Float, timeStampNs: Long) {
+        if (prevTimeStampNs != 0L) {
+            val dTimeSecs = (timeStampNs - prevTimeStampNs) / 1000000000f
             val dRoll = gyroY
             val discriminant = Math.signum(Math.cos(relativeRoll) * gyroX +
                     Math.sin(relativeRoll) * gyroZ)
@@ -39,19 +29,19 @@ class RelativeRotationGyro {
             val rotMagnitude =
                     Math.sqrt((gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ).toDouble())
 
-            relativeRoll = fixAngle(relativeRoll + dRoll * dTime)
-            relativePitch = fixAngle(relativePitch + dPitch * dTime)
+            relativeRoll = fixAngle(relativeRoll + dRoll * dTimeSecs)
+            relativePitch = fixAngle(relativePitch + dPitch * dTimeSecs)
 
-            if (magTimeConst < dTime) {
+            if (magTimeConst < dTimeSecs) {
                 magRollAcc = rotMagnitude
                 magPitchAcc = rotMagnitude
             } else {
-                magRollAcc *= (magTimeConst - dTime) / magTimeConst
+                magRollAcc *= (magTimeConst - dTimeSecs) / magTimeConst
                 magRollAcc += Math.signum(relativeRoll) *
-                        rotMagnitude * (dTime / magTimeConst)
-                magPitchAcc *= (magTimeConst - dTime) / magTimeConst
+                        rotMagnitude * (dTimeSecs / magTimeConst)
+                magPitchAcc *= (magTimeConst - dTimeSecs) / magTimeConst
                 magPitchAcc += Math.signum(relativePitch) *
-                        rotMagnitude * (dTime / magTimeConst)
+                        rotMagnitude * (dTimeSecs / magTimeConst)
             }
 
             if (Math.abs(relativeRoll) > freeRollLimit ||
@@ -60,7 +50,7 @@ class RelativeRotationGyro {
             } else if (freeRotation) {
                 rollRevertRate = 0.0
                 pitchRevertRate = 0.0
-                prevTimeStamp = timeStamp
+                prevTimeStampNs = timeStampNs
                 return
             }
 
@@ -69,26 +59,26 @@ class RelativeRotationGyro {
             val goalRevertRate: Double =
                     maxRevertRate * Math.exp(-magTotalAcc / revertRotConst)
 
-            if (goalRevertRate > rollRevertRate && dTime <= revertTimeConst) {
-                rollRevertRate *= (revertTimeConst - dTime) / revertTimeConst
-                rollRevertRate += goalRevertRate * (dTime / revertTimeConst)
+            if (goalRevertRate > rollRevertRate && dTimeSecs <= revertTimeConst) {
+                rollRevertRate *= (revertTimeConst - dTimeSecs) / revertTimeConst
+                rollRevertRate += goalRevertRate * (dTimeSecs / revertTimeConst)
             } else {
                 rollRevertRate = goalRevertRate
             }
-            if (goalRevertRate > pitchRevertRate && dTime <= revertTimeConst) {
-                pitchRevertRate *= (revertTimeConst - dTime) / revertTimeConst
-                pitchRevertRate += goalRevertRate * (dTime / revertTimeConst)
+            if (goalRevertRate > pitchRevertRate && dTimeSecs <= revertTimeConst) {
+                pitchRevertRate *= (revertTimeConst - dTimeSecs) / revertTimeConst
+                pitchRevertRate += goalRevertRate * (dTimeSecs / revertTimeConst)
             } else {
                 pitchRevertRate = goalRevertRate
             }
 
-            relativeRoll = moveToward(relativeRoll, 0.0, rollRevertRate * dTime)
-            relativePitch = moveToward(relativePitch, 0.0, pitchRevertRate * dTime)
+            relativeRoll = moveToward(relativeRoll, 0.0, rollRevertRate * dTimeSecs)
+            relativePitch = moveToward(relativePitch, 0.0, pitchRevertRate * dTimeSecs)
             if (relativeRoll == 0.0 && relativePitch == 0.0) {
                 freeRotation = true
             }
         }
-        prevTimeStamp = timeStamp
+        prevTimeStampNs = timeStampNs
     }
 
     fun getRelativeRoll(): Double {
@@ -97,6 +87,17 @@ class RelativeRotationGyro {
 
     fun getRelativePitch(): Double {
         return relativePitch
+    }
+
+    fun reset() {
+        relativeRoll = 0.0
+        relativePitch = 0.0
+        prevTimeStampNs = 0L
+        magRollAcc = 0.0
+        magPitchAcc = 0.0
+        rollRevertRate = 0.0
+        pitchRevertRate = 0.0
+        freeRotation = true
     }
 
     private fun fixAngle(angle: Double): Double {
