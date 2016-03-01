@@ -11,6 +11,31 @@ import jp.live2d.framework.L2DPhysics
 import jp.live2d.framework.L2DPose
 import jp.live2d.motion.Live2DMotion
 import jp.live2d.util.Json
+import java.io.File
+import java.io.InputStream
+
+/**
+ * Where external assets are stored, relative to the external storage
+ * base directory.
+ */
+private const val EXTERNAL_DIR_NAME: String = "Waifupaper"
+
+/**
+ * Convenience wrapper around a {@link FileLoader} that automatically
+ * joins loader paths with a specified base directory.
+ */
+private class FileLoaderWrapper(private val loader: FileLoader, private val basePath: String) : FileLoader() {
+    override fun openStream(path: String): InputStream {
+        return loader.openStream(File(basePath, path).path)
+    }
+
+    override fun enumerate(path: String): Array<String> {
+        return loader.enumerate(File(basePath, path).path)
+    }
+
+    override val location: FileLocation
+        get() = loader.location
+}
 
 /**
  * Handles the loading of Live2D model data from disk into memory.
@@ -57,11 +82,11 @@ object Live2DModelLoader {
         )
     }
 
-    private fun loadModel(loader: FileLoader, modelPath: String): Live2DModelAndroid {
+    private fun loadModel(loader: FileLoaderWrapper, modelPath: String): Live2DModelAndroid {
         return loader.openStream(modelPath).use { Live2DModelAndroid.loadModel(it) }
     }
 
-    private fun loadTextures(loader: FileLoader, texturePaths: Array<String>): Array<Bitmap> {
+    private fun loadTextures(loader: FileLoaderWrapper, texturePaths: Array<String>): Array<Bitmap> {
         return texturePaths.map {
             loader.openStream(it).use {
                 BitmapFactory.decodeStream(it)
@@ -69,17 +94,17 @@ object Live2DModelLoader {
         }.toTypedArray()
     }
 
-    private fun loadPhysics(loader: FileLoader, physicsPath: String?): L2DPhysics? {
+    private fun loadPhysics(loader: FileLoaderWrapper, physicsPath: String?): L2DPhysics? {
         if (physicsPath == null) return null
         return loader.openStream(physicsPath).use { L2DPhysics.load(it) }
     }
 
-    private fun loadPose(loader: FileLoader, posePath: String?): L2DPose? {
+    private fun loadPose(loader: FileLoaderWrapper, posePath: String?): L2DPose? {
         if (posePath == null) return null
         return loader.openStream(posePath).use { L2DPose.load(it) }
     }
 
-    private fun loadExpressions(loader: FileLoader, expressionInfos: Array<Live2DExpressionInfo>?): Array<Live2DExpressionWrapper>? {
+    private fun loadExpressions(loader: FileLoaderWrapper, expressionInfos: Array<Live2DExpressionInfo>?): Array<Live2DExpressionWrapper>? {
         if (expressionInfos == null) return null
         return expressionInfos.map { expression ->
             loader.openStream(expression.filePath).use {
@@ -107,7 +132,7 @@ object Live2DModelLoader {
         return matrix
     }
 
-    private fun loadMotions(loader: FileLoader, motionGroupInfos: Array<Live2DMotionGroupInfo>?): Array<Live2DMotionGroupWrapper>? {
+    private fun loadMotions(loader: FileLoaderWrapper, motionGroupInfos: Array<Live2DMotionGroupInfo>?): Array<Live2DMotionGroupWrapper>? {
         if (motionGroupInfos == null) return null
         return motionGroupInfos.map { motion ->
             Live2DMotionGroupWrapper(motion.name,
@@ -124,7 +149,7 @@ object Live2DModelLoader {
         }.toTypedArray()
     }
 
-    private fun loadInfo(loader: FileLoader, name: String): Live2DModelInfo {
+    private fun loadInfo(loader: FileLoaderWrapper, name: String): Live2DModelInfo {
         try {
             return loader.openStream("$name.model.json").use {
                 parseModelJson(loader.location, name, it.toByteArray())
@@ -134,16 +159,7 @@ object Live2DModelLoader {
         }
     }
 
-    private fun load(loader: FileLoader, name: String): Live2DModelWrapper {
-        val modelInfo = try {
-            loadInfo(loader, name)
-        } catch (e: Exception) {
-            throw Live2DModelLoadException(e)
-        }
-        return load(loader, modelInfo)
-    }
-
-    private fun load(loader: FileLoader, modelInfo: Live2DModelInfo): Live2DModelWrapper {
+    private fun load(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): Live2DModelWrapper {
         try {
             val model = loadModel(loader, modelInfo.modelPath)
             return Live2DModelWrapper(
@@ -161,13 +177,22 @@ object Live2DModelLoader {
         }
     }
 
+    private fun load(loader: FileLoaderWrapper, name: String): Live2DModelWrapper {
+        val modelInfo = try {
+            loadInfo(loader, name)
+        } catch (e: Exception) {
+            throw Live2DModelLoadException(e)
+        }
+        return load(loader, modelInfo)
+    }
+
     /**
      * Loads an unbound Live2D model from external storage.
      *
      * @param name The name of the model.
      */
     fun loadExternal(name: String): Live2DModelWrapper {
-        val loader = FileLoader.ExternalFileLoader(name)
+        val loader = FileLoaderWrapper(ExternalFileLoader(EXTERNAL_DIR_NAME), File("Models", name).path)
         return load(loader, name)
     }
 
@@ -178,7 +203,7 @@ object Live2DModelLoader {
      * @param name The name of the model.
      */
     fun loadInternal(context: Context, name: String): Live2DModelWrapper {
-        val loader = FileLoader.AssetFileLoader(context, name)
+        val loader = FileLoaderWrapper(AssetFileLoader(context), File("Models", name).path)
         return load(loader, name)
     }
 
@@ -190,7 +215,7 @@ object Live2DModelLoader {
      * @param name The name of the model.
      */
     fun loadExternalInfo(name: String): Live2DModelInfo {
-        val loader = FileLoader.ExternalFileLoader(name)
+        val loader = FileLoaderWrapper(ExternalFileLoader(EXTERNAL_DIR_NAME), File("Models", name).path)
         return loadInfo(loader, name)
     }
 
@@ -203,7 +228,29 @@ object Live2DModelLoader {
      * @param name The name of the model.
      */
     fun loadInternalInfo(context: Context, name: String): Live2DModelInfo {
-        val loader = FileLoader.AssetFileLoader(context, name)
+        val loader = FileLoaderWrapper(AssetFileLoader(context), File("Models", name).path)
         return loadInfo(loader, name)
+    }
+
+    /**
+     * Enumerates all available model data from both internal and external
+     * storage. Models that fail to load will be silently ignored.
+     *
+     * @param context A context instance used to access app assets.
+     */
+    fun enumerateModels(context: Context): Array<Live2DModelInfo> {
+        val internalLoader = AssetFileLoader(context)
+        val externalLoader = ExternalFileLoader(EXTERNAL_DIR_NAME)
+        val internalModels = internalLoader.enumerate("Models").map {
+            loadInternalInfo(context, it)
+        }
+        val externalModels = externalLoader.enumerate("Models").mapNotNull {
+            try {
+                loadExternalInfo(it)
+            } catch (e: Exception) {
+                null
+            }
+        }
+        return internalModels.plus(externalModels).toTypedArray()
     }
 }
