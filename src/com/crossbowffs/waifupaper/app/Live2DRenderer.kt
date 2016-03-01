@@ -15,7 +15,7 @@ import javax.microedition.khronos.opengles.GL10
 class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer {
     private val ENABLE_SOUNDS = true
 
-    private val motionMgr: MotionQueueManager
+    private val motionManager: MotionQueueManager
     private val dragMgr: L2DTargetPoint
     private var modelWrapper: Live2DModelWrapper? = null
     private var soundPool: SoundPoolWrapper? = null
@@ -24,7 +24,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
 
     init {
         dragMgr = L2DTargetPoint()
-        motionMgr = MotionQueueManager()
+        motionManager = MotionQueueManager()
     }
 
     private val hasModel: Boolean
@@ -48,24 +48,6 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     private val motions: Array<Live2DMotionGroupWrapper>?
         get() = modelWrapper!!.motionGroups
 
-    fun playSoundForMotion() {
-        if (soundPool == null) return
-        motions!![motionIndex].motions[subMotionIndex].soundFilePath.useNotNull {
-            soundPool!!.playSound(it)
-        }
-    }
-
-    fun chooseMotion(): Live2DMotion {
-        var currMotion = motions!![motionIndex]
-        if (++subMotionIndex == currMotion.motions.size) {
-            subMotionIndex = 0
-            motionIndex = (motionIndex + 1) % currMotion.motions.size
-            currMotion = motions!![motionIndex]
-        }
-        playSoundForMotion()
-        return currMotion.motions[subMotionIndex].motion
-    }
-
     override fun onDrawFrame(gl: GL10) {
         gl.glMatrixMode(GL10.GL_MODELVIEW)
         gl.glLoadIdentity()
@@ -82,10 +64,10 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         model.loadParam()
 
         if (motions != null) {
-            if (motionMgr.isFinished) {
-                motionMgr.startMotion(chooseMotion(), false)
+            if (motionManager.isFinished) {
+                motionManager.startMotion(chooseMotion(), false)
             } else {
-                motionMgr.updateParam(model)
+                motionManager.updateParam(model)
             }
         }
 
@@ -131,6 +113,33 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         }
     }
 
+    fun onResume() {
+
+    }
+
+    fun onPause() {
+        soundPool?.stopSound()
+    }
+
+    fun playSoundForMotion() {
+        if (soundPool == null) return
+        motions!![motionIndex].motions[subMotionIndex].soundFilePath.useNotNull {
+            soundPool!!.playSound(it)
+        }
+    }
+
+    fun chooseMotion(): Live2DMotion {
+        var currMotion = motions!![motionIndex]
+        if (++subMotionIndex == currMotion.motions.size) {
+            subMotionIndex = 0
+            motionIndex = (motionIndex + 1) % currMotion.motions.size
+            currMotion = motions!![motionIndex]
+        }
+        playSoundForMotion()
+        return currMotion.motions[subMotionIndex].motion
+    }
+
+
     fun loadGLTextures(gl: GL10, modelData: Live2DModelWrapper) {
         modelData.model.setGL(gl)
         for (i in modelData.textures.indices) {
@@ -155,22 +164,14 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     fun release() {
         motionIndex = -1
         subMotionIndex = -1
-        motionMgr.stopAllMotions()
+        motionManager.stopAllMotions()
+        soundPool?.release()
+        soundPool = null
         if (modelWrapper != null) {
             val model = modelWrapper!!.model
             model.deleteTextures()
             model.setGL(null)
-            soundPool?.release()
             modelWrapper = null
         }
-    }
-
-    fun resetDrag() {
-        dragMgr.set(0f, 0f)
-    }
-
-
-    fun drag(x: Float, y: Float) {
-        dragMgr.set(x, y)
     }
 }

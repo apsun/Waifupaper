@@ -2,6 +2,7 @@ package com.crossbowffs.waifupaper.loader
 
 import android.media.AudioAttributes
 import android.media.SoundPool
+import com.crossbowffs.waifupaper.utils.useNotNull
 
 /**
  * Manages sound assets used by a Live2D model. Once you are
@@ -10,6 +11,7 @@ import android.media.SoundPool
 class SoundPoolWrapper {
     private val soundMap: MutableMap<String, Int>
     private val soundPool: SoundPool
+    private var lastSound: Int? = null
 
     init {
         soundMap = hashMapOf()
@@ -30,7 +32,11 @@ class SoundPoolWrapper {
     }
 
     fun playSound(soundFilePath: String) {
-        soundPool.play(soundMap[soundFilePath]!!, 1f, 1f, 1, 0, 1f)
+        lastSound = soundPool.play(soundMap[soundFilePath]!!, 1f, 1f, 1, 0, 1f)
+    }
+
+    fun stopSound() {
+        lastSound.useNotNull { soundPool.stop(it) }
     }
 
     fun release() {
