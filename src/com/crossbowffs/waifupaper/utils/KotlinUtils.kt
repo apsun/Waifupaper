@@ -1,7 +1,9 @@
 package com.crossbowffs.waifupaper.utils
 
-inline fun <T> T?.useNotNull(block: (T) -> Unit) {
+inline fun <T, R> T?.useNotNull(block: (T) -> R): R? {
     if (this != null) {
-        block(this)
+        return block(this)
+    } else {
+        return null
     }
 }

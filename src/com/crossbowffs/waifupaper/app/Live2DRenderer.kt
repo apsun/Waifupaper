@@ -5,6 +5,7 @@ import com.crossbowffs.waifupaper.loader.Live2DExpressionWrapper
 import com.crossbowffs.waifupaper.loader.Live2DModelLoader
 import com.crossbowffs.waifupaper.loader.Live2DModelWrapper
 import com.crossbowffs.waifupaper.loader.Live2DMotionGroupWrapper
+import com.crossbowffs.waifupaper.utils.useNotNull
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.android.UtOpenGL
 import jp.live2d.framework.*
@@ -15,7 +16,6 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer {
-
     private val motionMgr: MotionQueueManager
     private val dragMgr: L2DTargetPoint
     private var modelWrapper: Live2DModelWrapper? = null
@@ -48,6 +48,15 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     private val motions: Array<Live2DMotionGroupWrapper>?
         get() = modelWrapper!!.motionGroups
 
+    private val soundManager: SoundManager?
+        get() = modelWrapper!!.soundManager
+
+    fun playSoundsForMotion() {
+        motions!![motionIndex].motions[subMotionIndex].soundId.useNotNull {
+            soundManager!!.playSound(it)
+        }
+    }
+
     fun chooseMotion(): Live2DMotion {
         var currMotion = motions!![motionIndex]
         if (++subMotionIndex == currMotion.motions.size) {
@@ -55,6 +64,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             motionIndex = (motionIndex + 1) % currMotion.motions.size
             currMotion = motions!![motionIndex]
         }
+        playSoundsForMotion()
         return currMotion.motions[subMotionIndex].motion
     }
 
@@ -116,7 +126,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
     }
 
     override fun onSurfaceCreated(gl: GL10, config: EGLConfig) {
-        setModel(gl, "Epsilon")
+        setModel(gl, "shizuku")
     }
 
     fun setModel(gl: GL10, name: String) {
@@ -140,6 +150,7 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             val model = modelWrapper!!.model
             model.deleteTextures()
             model.setGL(null)
+            modelWrapper!!.soundManager?.release()
             modelWrapper = null
         }
     }

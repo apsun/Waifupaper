@@ -2,7 +2,9 @@ package com.crossbowffs.waifupaper.loader
 
 import android.content.Context
 import android.os.Environment
+import android.os.ParcelFileDescriptor
 import com.crossbowffs.waifupaper.utils.join
+import java.io.File
 import java.io.FileInputStream
 import java.io.InputStream
 
@@ -19,13 +21,20 @@ enum class FileLocation {
  */
 abstract class FileLoader {
     /**
-     * Opens the file at the specified path for reading.
+     * Opens the file at the specified path for reading. The caller is
+     * responsible for closing the stream.
      */
     abstract fun openStream(path: String): InputStream
 
     /**
-     * Returns a list of files/subdirectories in the specified directory.
-     * This method is not recursive.
+     * Creates a file descriptor the the file at the specified path.
+     * The caller is responsible for closing the file descriptor.
+     */
+    abstract fun openFileDescriptor(path: String): MultiFileDescriptor
+
+    /**
+     * Returns a list of file/subdirectory names in the specified directory.
+     * This method does not recursively search subdirectories.
      */
     abstract fun enumerate(path: String): Array<String>
 
@@ -41,6 +50,10 @@ abstract class FileLoader {
 class AssetFileLoader(private val context: Context): FileLoader() {
     override fun openStream(path: String): InputStream {
         return context.assets.open(path)
+    }
+
+    override fun openFileDescriptor(path: String): MultiFileDescriptor {
+        return MultiFileDescriptor(context.assets.openFd(path))
     }
 
     override fun enumerate(path: String): Array<String> {
@@ -59,9 +72,15 @@ class AssetFileLoader(private val context: Context): FileLoader() {
  *                 to the external storage base directory.
  */
 class ExternalFileLoader(private val basePath: String): FileLoader() {
-    override fun openStream(path: String): InputStream {
+    override fun openStream(path: String): FileInputStream {
         val extDir = Environment.getExternalStorageDirectory()
         return FileInputStream(extDir.join(basePath, path))
+    }
+
+    override fun openFileDescriptor(path: String): MultiFileDescriptor {
+        val extDir = Environment.getExternalStorageDirectory()
+        val descriptor = ParcelFileDescriptor.open(extDir.join(basePath, path), ParcelFileDescriptor.MODE_READ_ONLY)
+        return MultiFileDescriptor(descriptor)
     }
 
     override fun enumerate(path: String): Array<String> {
@@ -71,4 +90,29 @@ class ExternalFileLoader(private val basePath: String): FileLoader() {
 
     override val location: FileLocation
         get() = FileLocation.EXTERNAL
+}
+
+/**
+ * Convenience wrapper around a {@link FileLoader} that automatically
+ * joins loader paths with a specified base directory.
+ *
+ * @param loader The loader instance to wrap.
+ * @param basePath The base path to load files from, relative to
+ *                 the base path of the wrapped loader instance.
+ */
+class FileLoaderWrapper(private val loader: FileLoader, private val basePath: String) : FileLoader() {
+    override fun openStream(path: String): InputStream {
+        return loader.openStream(File(basePath, path).path)
+    }
+
+    override fun openFileDescriptor(path: String): MultiFileDescriptor {
+        return loader.openFileDescriptor(File(basePath, path).path)
+    }
+
+    override fun enumerate(path: String): Array<String> {
+        return loader.enumerate(File(basePath, path).path)
+    }
+
+    override val location: FileLocation
+        get() = loader.location
 }

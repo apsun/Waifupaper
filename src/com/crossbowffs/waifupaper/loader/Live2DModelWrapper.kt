@@ -1,6 +1,7 @@
 package com.crossbowffs.waifupaper.loader
 
 import android.graphics.Bitmap
+import com.crossbowffs.waifupaper.app.SoundManager
 import jp.live2d.android.Live2DModelAndroid
 import jp.live2d.framework.L2DExpressionMotion
 import jp.live2d.framework.L2DModelMatrix
@@ -10,7 +11,7 @@ import jp.live2d.motion.Live2DMotion
 
 class Live2DMotionWrapper(
     val motion: Live2DMotion,
-    val soundFilePath: String?,
+    val soundId: Int?,
     val fadeInDuration: Int?,
     val fadeOutDuration: Int?
 )
@@ -25,7 +26,6 @@ class Live2DExpressionWrapper(
     val expression: L2DExpressionMotion
 )
 
-
 /**
  * This class holds data for Live2D models that does not depend
  * on an OpenGL context.
@@ -38,5 +38,6 @@ class Live2DModelWrapper(
     val pose: L2DPose?,
     val expressions: Array<Live2DExpressionWrapper>?,
     val layoutMatrix: L2DModelMatrix,
-    val motionGroups: Array<Live2DMotionGroupWrapper>?
+    val motionGroups: Array<Live2DMotionGroupWrapper>?,
+    val soundManager: SoundManager?
 )
