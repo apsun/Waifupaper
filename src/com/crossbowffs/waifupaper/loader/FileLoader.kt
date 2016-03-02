@@ -86,7 +86,7 @@ class ExternalFileLoader(private val basePath: String): FileLoader() {
 
     override fun enumerate(path: String): Array<String> {
         val extDir = Environment.getExternalStorageDirectory()
-        return extDir.join(path).list() ?: emptyArray()
+        return extDir.join(basePath, path).list() ?: emptyArray()
     }
 
     override val location: FileLocation

@@ -10,5 +10,11 @@
         android:id="@+id/activity_main_coordinator"
         android:layout_width="match_parent"
         android:layout_height="match_parent">
+        <com.crossbowffs.waifupaper.app.ListRecyclerView
+            android:id="@+id/activity_main_list"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent">
+
+        </com.crossbowffs.waifupaper.app.ListRecyclerView>
     </android.support.design.widget.CoordinatorLayout>
 </LinearLayout>

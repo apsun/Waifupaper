@@ -8,6 +8,8 @@ import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import android.preference.PreferenceManager
 import android.view.SurfaceHolder
+import com.crossbowffs.waifupaper.loader.FileLocation
+import com.crossbowffs.waifupaper.utils.useNotNull
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
 
 class LiveWallpaperService : GLWallpaperService() {
@@ -22,6 +24,14 @@ class LiveWallpaperService : GLWallpaperService() {
         sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
     }
 
+    private fun getSelectedModel(): Pair<String, FileLocation>? {
+        val data = preferences.getString("selectedModel", null)?.split(':')
+        if (data != null) {
+            return data[0] to FileLocation.valueOf(data[1])
+        }
+        return null
+    }
+
     override fun onCreateEngine(): GLEngine = LiveWallpaperEngine()
 
     private inner class LiveWallpaperEngine : GLWallpaperService.GLEngine(),
@@ -32,6 +42,7 @@ class LiveWallpaperService : GLWallpaperService() {
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
             renderer = Live2DRenderer(applicationContext)
+            getSelectedModel().useNotNull { renderer.setModel(it.first, it.second) }
             setRenderer(renderer)
             renderMode = GLWallpaperService.GLEngine.RENDERMODE_CONTINUOUSLY
             preferences.registerOnSharedPreferenceChangeListener(this)
@@ -63,7 +74,9 @@ class LiveWallpaperService : GLWallpaperService() {
         }
 
         override fun onSharedPreferenceChanged(p0: SharedPreferences?, p1: String?) {
-            // TODO
+            if (p1 == "selectedModel") {
+                getSelectedModel().useNotNull { renderer.setModel(it.first, it.second) }
+            }
         }
     }
 }

@@ -207,6 +207,20 @@ object Live2DModelLoader {
     }
 
     /**
+     * Loads information about a Live2D model.
+     * This is useful when enumerating model info without actually
+     * loading them into memory.
+     *
+     * @param context A context instance used to access app assets.
+     * @param name The name of the model.
+     * @param location The location to look for the model in.
+     */
+    fun loadInfo(context: Context, name: String, location: FileLocation) = when (location) {
+        FileLocation.ASSETS -> loadInternalInfo(context, name)
+        FileLocation.EXTERNAL -> loadExternalInfo(name)
+    }
+
+    /**
      * Loads an unbound Live2D model from external storage.
      *
      * @param modelInfo The model to load.
@@ -228,7 +242,19 @@ object Live2DModelLoader {
     }
 
     /**
-     * Loads Live2D motion sounds from external storage. If the model
+     * Loads an unbound Live2D model.
+     *
+     * @param context A context instance used to access app assets.
+     * @param modelInfo The model to load.
+     */
+    fun loadModel(context: Context, modelInfo: Live2DModelInfo) = when (modelInfo.location) {
+        FileLocation.ASSETS -> loadInternalModel(context, modelInfo)
+        FileLocation.EXTERNAL -> loadExternalModel(modelInfo)
+    }
+
+    /**
+     * Loads Live2D motion sounds from external storage into a sound pool.
+     * You must release the pool once you are done using it. If the model
      * does have any motion groups, {@code null} will be returned.
      *
      * @param modelInfo The model to load sounds for.
@@ -239,7 +265,8 @@ object Live2DModelLoader {
     }
 
     /**
-     * Loads Live2D motion sounds from internal storage. If the model
+     * Loads Live2D motion sounds from internal storage into a sound pool.
+     * You must release the pool once you are done using it. If the model
      * does have any motion groups, {@code null} will be returned.
      *
      * @param modelInfo The model to load sounds for.
@@ -247,6 +274,18 @@ object Live2DModelLoader {
     fun loadInternalSounds(context: Context, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
         val loader = wrapModelLoader(AssetFileLoader(context), modelInfo.name)
         return loadSounds(loader, modelInfo)
+    }
+
+    /**
+     * Loads Live2D motion sounds into a sound pool. You must release
+     * the pool once you are done using it. If the model
+     * does have any motion groups, {@code null} will be returned.
+     *
+     * @param modelInfo The model to load sounds for.
+     */
+    fun loadSounds(context: Context, modelInfo: Live2DModelInfo) = when (modelInfo.location) {
+        FileLocation.ASSETS -> loadInternalSounds(context, modelInfo)
+        FileLocation.EXTERNAL -> loadExternalSounds(modelInfo)
     }
 
     /**
@@ -262,7 +301,9 @@ object Live2DModelLoader {
             loadInternalInfo(context, it)
         }
         if (loadExternal) {
+            loge("trying to load external models")
             models = models.plus(externalLoader.enumerate(MODELS_DIR_NAME).mapNotNull {
+                loge("trying to load: $it")
                 try {
                     loadExternalInfo(it)
                 } catch (e: Exception) {

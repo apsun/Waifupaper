@@ -7,7 +7,7 @@ import android.view.ContextMenu
 import android.view.View
 
 class ListRecyclerView : RecyclerView {
-    class RecyclerContextMenuInfo(val mTargetView: View, val mPosition: Int, val mId: Long) : ContextMenu.ContextMenuInfo
+    class RecyclerContextMenuInfo(val targetView: View, val position: Int, val id: Long) : ContextMenu.ContextMenuInfo
 
     private val mAdapterObserver = object : RecyclerView.AdapterDataObserver() {
         override fun onChanged() {
@@ -15,10 +15,11 @@ class ListRecyclerView : RecyclerView {
         }
     }
 
-    private var mContextMenuInfo: RecyclerContextMenuInfo? = null
+    private var contextMenuInfo: RecyclerContextMenuInfo? = null
+
     var emptyView: View? = null
-        set(emptyView) {
-            this.emptyView = emptyView
+        set(value) {
+            emptyView = value
             updateEmptyView()
         }
 
@@ -35,20 +36,20 @@ class ListRecyclerView : RecyclerView {
     }
 
     override fun getContextMenuInfo(): ContextMenu.ContextMenuInfo {
-        return mContextMenuInfo!!
+        return contextMenuInfo!!
     }
 
     override fun showContextMenuForChild(originalView: View): Boolean {
         val position = getChildAdapterPosition(originalView)
         if (position >= 0) {
             val id = adapter.getItemId(position)
-            mContextMenuInfo = RecyclerContextMenuInfo(originalView, position, id)
+            contextMenuInfo = RecyclerContextMenuInfo(originalView, position, id)
             return super.showContextMenuForChild(originalView)
         }
         return false
     }
 
-    override fun setAdapter(adapter: RecyclerView.Adapter<ViewHolder>?) {
+    override fun setAdapter(adapter: RecyclerView.Adapter<out ViewHolder>?) {
         val oldAdapter = getAdapter()
         oldAdapter?.unregisterAdapterDataObserver(mAdapterObserver)
         super.setAdapter(adapter)
