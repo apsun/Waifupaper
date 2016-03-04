@@ -12,6 +12,8 @@ import android.preference.PreferenceManager
 import android.view.MotionEvent
 import android.view.SurfaceHolder
 import com.crossbowffs.waifupaper.loader.FileLocation
+import com.crossbowffs.waifupaper.rendering.Live2DRenderer
+import com.crossbowffs.waifupaper.rendering.ViewTransformState
 import com.crossbowffs.waifupaper.utils.useNotNull
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
 
@@ -41,7 +43,7 @@ class LiveWallpaperService : GLWallpaperService() {
             SharedPreferences.OnSharedPreferenceChangeListener {
         private lateinit var renderer: Live2DRenderer
         private lateinit var screenDimensions: Pair<Int, Int>
-        private lateinit var bgModelPosition: BGModelPosition
+        private lateinit var bgModelPosition: ViewTransformState
         private lateinit var sensorListener: SensorEventListener
         private lateinit var sensorThread: HandlerThread
         private lateinit var sensorHandler: Handler
@@ -57,7 +59,7 @@ class LiveWallpaperService : GLWallpaperService() {
             screenDimensions = Pair(displayMetrics.widthPixels, displayMetrics.heightPixels)
             this.setTouchEventsEnabled(true)
 
-            bgModelPosition = BGModelPosition(0.5f, 0.5f, 0.14f, 0.07f)
+            bgModelPosition = ViewTransformState(0.5f, 0.5f, 0.14f, 0.07f)
             renderer.setPositioner(bgModelPosition)
             sensorListener = object: SensorEventListener {
                 override fun onSensorChanged(event: SensorEvent) {

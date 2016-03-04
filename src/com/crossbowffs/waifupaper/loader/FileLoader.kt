@@ -13,7 +13,7 @@ import java.io.InputStream
  * Represents the location at which a loader will look for files.
  */
 enum class FileLocation {
-    ASSETS,
+    INTERNAL,
     EXTERNAL
 }
 
@@ -48,7 +48,7 @@ abstract class FileLoader {
 /**
  * Loads files from internal storage (assets directory within the APK).
  */
-class AssetFileLoader(private val context: Context): FileLoader() {
+class InternalFileLoader(private val context: Context): FileLoader() {
     override fun openStream(path: String): InputStream {
         return context.assets.open(path)
     }
@@ -62,7 +62,7 @@ class AssetFileLoader(private val context: Context): FileLoader() {
     }
 
     override val location: FileLocation
-        get() = FileLocation.ASSETS
+        get() = FileLocation.INTERNAL
 }
 
 /**

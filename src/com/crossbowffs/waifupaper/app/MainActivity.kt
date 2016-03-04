@@ -12,9 +12,9 @@ import android.view.ViewGroup
 import android.widget.TextView
 import android.widget.Toast
 import com.crossbowffs.waifupaper.R
+import com.crossbowffs.waifupaper.loader.AssetLoader
 import com.crossbowffs.waifupaper.loader.FileLocation
 import com.crossbowffs.waifupaper.loader.Live2DModelInfo
-import com.crossbowffs.waifupaper.loader.Live2DModelLoader
 import com.crossbowffs.waifupaper.utils.loge
 import kotlinx.android.synthetic.main.activity_main.*
 import kotlinx.android.synthetic.main.toolbar.*
@@ -36,7 +36,7 @@ class MainAdapter(private val activity: MainActivity) : RecyclerArrayAdapter<Liv
 
     override fun onBindViewHolder(vh: MainViewHolder, value: Live2DModelInfo) {
         vh.nameTextView.text = value.name
-        vh.locTextView.text = if (value.location == FileLocation.ASSETS) "Internal" else "External"
+        vh.locTextView.text = if (value.location == FileLocation.INTERNAL) "Internal" else "External"
         vh.itemView.setOnClickListener {
             activity.setSelectedModel(value)
             Toast.makeText(activity, "Selected model: ${value.name}", Toast.LENGTH_SHORT).show()
@@ -95,7 +95,7 @@ class MainActivity : PrivilegedActivity() {
         (object : AsyncTask<Void, Void, Array<Live2DModelInfo>>() {
             override fun doInBackground(vararg p0: Void?): Array<Live2DModelInfo> {
                 loge("Granted?: $granted")
-                return Live2DModelLoader.enumerateModels(this@MainActivity, granted)
+                return AssetLoader.enumerateModels(this@MainActivity, granted)
             }
 
             override fun onPostExecute(result: Array<Live2DModelInfo>?) {

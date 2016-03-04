@@ -11,9 +11,7 @@ import jp.live2d.framework.L2DPhysics
 import jp.live2d.framework.L2DPose
 import jp.live2d.motion.Live2DMotion
 import jp.live2d.util.Json
-import jp.live2d.utils.android.SimpleImage
 import java.io.File
-import javax.microedition.khronos.opengles.GL10
 
 /**
  * Where external assets are stored, relative to the external storage
@@ -27,9 +25,14 @@ private const val EXTERNAL_DIR_NAME: String = "Waifupaper"
 private const val MODELS_DIR_NAME: String = "Models"
 
 /**
+ * Where background images are stored, relative to the loader base directory.
+ */
+private const val BACKGROUNDS_DIR_NAME: String = "Backgrounds"
+
+/**
  * Handles the loading of Live2D model data from disk into memory.
  */
-object Live2DModelLoader {
+object AssetLoader {
     private fun parseModelJson(location: FileLocation, fName: String, modelJsonBytes: ByteArray): Live2DModelInfo {
         val modelJson = Json.parseFromBytes(modelJsonBytes)
 
@@ -140,72 +143,13 @@ object Live2DModelLoader {
         }.toTypedArray()
     }
 
-    private fun loadInfo(loader: FileLoaderWrapper, name: String): Live2DModelInfo {
-        try {
-            return loader.openStream("$name.model.json").use {
-                parseModelJson(loader.location, name, it.toByteArray())
-            }
-        } catch (e: Exception) {
-            throw Live2DModelLoadException(e)
-        }
-    }
-
-    private fun loadModel(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): Live2DModelWrapper {
-        try {
-            val model = loadModel(loader, modelInfo.modelPath)
-            return Live2DModelWrapper(
-                modelInfo.name,
-                model,
-                loadTextures(loader, modelInfo.texturePaths),
-                loadPhysics(loader, modelInfo.physicsPath),
-                loadPose(loader, modelInfo.posePath),
-                loadExpressions(loader, modelInfo.expressionInfos),
-                parseLayout(model, modelInfo.layoutInfo),
-                loadMotions(loader, modelInfo.motionGroupInfos)
-            )
-        } catch (e: Exception) {
-            throw Live2DModelLoadException(e)
-        }
-    }
-
-    private fun loadSounds(loader: FileLoaderWrapper, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
-        if (modelInfo.motionGroupInfos == null) return null
-        val soundPool = SoundPoolWrapper()
-        modelInfo.motionGroupInfos.forEach {
-            it.motions.forEach {
-                it.soundFilePath.useNotNull { soundPool.loadSound(loader, it) }
-            }
-        }
-        return soundPool
+    private fun loaderFor(context: Context, location: FileLocation) = when (location) {
+        FileLocation.INTERNAL -> InternalFileLoader(context)
+        FileLocation.EXTERNAL -> ExternalFileLoader(EXTERNAL_DIR_NAME)
     }
 
     private fun wrapModelLoader(loader: FileLoader, name: String): FileLoaderWrapper {
         return FileLoaderWrapper(loader, File(MODELS_DIR_NAME, name).path)
-    }
-
-    /**
-     * Loads information about a Live2D model from external storage.
-     * This is useful when enumerating model info without actually
-     * loading them into memory.
-     *
-     * @param name The name of the model.
-     */
-    fun loadExternalInfo(name: String): Live2DModelInfo {
-        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), name)
-        return loadInfo(loader, name)
-    }
-
-    /**
-     * Loads information about a Live2D model from internal storage (assets).
-     * This is useful when enumerating model info without actually
-     * loading them into memory.
-     *
-     * @param context A context instance used to access app assets.
-     * @param name The name of the model.
-     */
-    fun loadInternalInfo(context: Context, name: String): Live2DModelInfo {
-        val loader = wrapModelLoader(AssetFileLoader(context), name)
-        return loadInfo(loader, name)
     }
 
     /**
@@ -217,30 +161,11 @@ object Live2DModelLoader {
      * @param name The name of the model.
      * @param location The location to look for the model in.
      */
-    fun loadInfo(context: Context, name: String, location: FileLocation) = when (location) {
-        FileLocation.ASSETS -> loadInternalInfo(context, name)
-        FileLocation.EXTERNAL -> loadExternalInfo(name)
-    }
-
-    /**
-     * Loads an unbound Live2D model from external storage.
-     *
-     * @param modelInfo The model to load.
-     */
-    fun loadExternalModel(modelInfo: Live2DModelInfo): Live2DModelWrapper {
-        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), modelInfo.name)
-        return loadModel(loader, modelInfo)
-    }
-
-    /**
-     * Loads an unbound Live2D model from internal storage (assets).
-     *
-     * @param context A context instance used to access app assets.
-     * @param modelInfo The model to load.
-     */
-    fun loadInternalModel(context: Context, modelInfo: Live2DModelInfo): Live2DModelWrapper {
-        val loader = wrapModelLoader(AssetFileLoader(context), modelInfo.name)
-        return loadModel(loader, modelInfo)
+    fun loadModelInfo(context: Context, name: String, location: FileLocation): Live2DModelInfo {
+        val loader = wrapModelLoader(loaderFor(context, location), name)
+        return loader.openStream("$name.model.json").use {
+            parseModelJson(loader.location, name, it.toByteArray())
+        }
     }
 
     /**
@@ -249,46 +174,19 @@ object Live2DModelLoader {
      * @param context A context instance used to access app assets.
      * @param modelInfo The model to load.
      */
-    fun loadModel(context: Context, modelInfo: Live2DModelInfo) = when (modelInfo.location) {
-        FileLocation.ASSETS -> loadInternalModel(context, modelInfo)
-        FileLocation.EXTERNAL -> loadExternalModel(modelInfo)
-    }
-
-    /**
-     * Loads a background image.
-     *
-     * @param context A context instance used to access app assets.
-     * @param gl The OpenGL object. FIXME: This is likely a bit hacky
-     * @param backgroundPath The background image to load.
-     */
-    fun loadBackground(context: Context, gl: GL10?, backgroundPath: String): SimpleImage? {
-        //TODO: Allow loading from external sources
-        val loader = AssetFileLoader(context)
-        return loader.openStream(backgroundPath).use { SimpleImage(gl, it) }
-    }
-
-    /**
-     * Loads Live2D motion sounds from external storage into a sound pool.
-     * You must release the pool once you are done using it. If the model
-     * does have any motion groups, {@code null} will be returned.
-     *
-     * @param modelInfo The model to load sounds for.
-     */
-    fun loadExternalSounds(modelInfo: Live2DModelInfo): SoundPoolWrapper? {
-        val loader = wrapModelLoader(ExternalFileLoader(EXTERNAL_DIR_NAME), modelInfo.name)
-        return loadSounds(loader, modelInfo)
-    }
-
-    /**
-     * Loads Live2D motion sounds from internal storage into a sound pool.
-     * You must release the pool once you are done using it. If the model
-     * does have any motion groups, {@code null} will be returned.
-     *
-     * @param modelInfo The model to load sounds for.
-     */
-    fun loadInternalSounds(context: Context, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
-        val loader = wrapModelLoader(AssetFileLoader(context), modelInfo.name)
-        return loadSounds(loader, modelInfo)
+    fun loadModel(context: Context, modelInfo: Live2DModelInfo): Live2DModelWrapper {
+        val loader = wrapModelLoader(loaderFor(context, modelInfo.location), modelInfo.name)
+        val model = loadModel(loader, modelInfo.modelPath)
+        return Live2DModelWrapper(
+            modelInfo.name,
+            model,
+            loadTextures(loader, modelInfo.texturePaths),
+            loadPhysics(loader, modelInfo.physicsPath),
+            loadPose(loader, modelInfo.posePath),
+            loadExpressions(loader, modelInfo.expressionInfos),
+            parseLayout(model, modelInfo.layoutInfo),
+            loadMotions(loader, modelInfo.motionGroupInfos)
+        )
     }
 
     /**
@@ -298,9 +196,30 @@ object Live2DModelLoader {
      *
      * @param modelInfo The model to load sounds for.
      */
-    fun loadSounds(context: Context, modelInfo: Live2DModelInfo) = when (modelInfo.location) {
-        FileLocation.ASSETS -> loadInternalSounds(context, modelInfo)
-        FileLocation.EXTERNAL -> loadExternalSounds(modelInfo)
+    fun loadSounds(context: Context, modelInfo: Live2DModelInfo): SoundPoolWrapper? {
+        val loader = wrapModelLoader(loaderFor(context, modelInfo.location), modelInfo.name)
+        if (modelInfo.motionGroupInfos == null) return null
+        val soundPool = SoundPoolWrapper()
+        modelInfo.motionGroupInfos.forEach {
+            it.motions.forEach {
+                it.soundFilePath.useNotNull { soundPool.loadSound(loader, it) }
+            }
+        }
+        return soundPool
+    }
+
+    /**
+     * Loads a background image.
+     *
+     * @param context A context instance used to access app assets.
+     * @param imagePath The path to background image to load, relative to
+     *                  the "Backgrounds" directory.
+     */
+    fun loadBackground(context: Context, imagePath: String, location: FileLocation): Bitmap {
+        val loader = FileLoaderWrapper(loaderFor(context, location), BACKGROUNDS_DIR_NAME)
+        return loader.openStream(imagePath).use {
+            BitmapFactory.decodeStream(it)
+        }
     }
 
     /**
@@ -310,17 +229,15 @@ object Live2DModelLoader {
      * @param context A context instance used to access app assets.
      */
     fun enumerateModels(context: Context, loadExternal: Boolean): Array<Live2DModelInfo> {
-        val internalLoader = AssetFileLoader(context)
+        val internalLoader = InternalFileLoader(context)
         val externalLoader = ExternalFileLoader(EXTERNAL_DIR_NAME)
         var models = internalLoader.enumerate(MODELS_DIR_NAME).map {
-            loadInternalInfo(context, it)
+            loadModelInfo(context, it, FileLocation.INTERNAL)
         }
         if (loadExternal) {
-            loge("trying to load external models")
             models = models.plus(externalLoader.enumerate(MODELS_DIR_NAME).mapNotNull {
-                loge("trying to load: $it")
                 try {
-                    loadExternalInfo(it)
+                    loadModelInfo(context, it, FileLocation.EXTERNAL)
                 } catch (e: Exception) {
                     loge("Failed to load model", e)
                     null

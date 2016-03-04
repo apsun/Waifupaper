@@ -1,6 +1,6 @@
-package com.crossbowffs.waifupaper.app
+package com.crossbowffs.waifupaper.rendering
 
-class RotationState {
+class GyroState {
     private val freeRollLimit: Double = 0.5
     private val freePitchLimit: Double = 0.3
     private val maxRevertRate: Double = 20.0
@@ -22,12 +22,9 @@ class RotationState {
         if (prevTimeStampNs != 0L) {
             val dTimeSecs = (timeStampNs - prevTimeStampNs) / 1000000000f
             val dRoll = gyroY
-            val discriminant = Math.signum(Math.cos(relativeRoll) * gyroX +
-                    Math.sin(relativeRoll) * gyroZ)
-            val dPitch =
-                    discriminant * Math.sqrt((gyroX * gyroX + gyroZ * gyroZ).toDouble())
-            val rotMagnitude =
-                    Math.sqrt((gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ).toDouble())
+            val discriminant = Math.signum(Math.cos(relativeRoll) * gyroX + Math.sin(relativeRoll) * gyroZ)
+            val dPitch = discriminant * Math.sqrt((gyroX * gyroX + gyroZ * gyroZ).toDouble())
+            val rotMagnitude = Math.sqrt((gyroX * gyroX + gyroY * gyroY + gyroZ * gyroZ).toDouble())
 
             relativeRoll = fixAngle(relativeRoll + dRoll * dTimeSecs)
             relativePitch = fixAngle(relativePitch + dPitch * dTimeSecs)
@@ -37,15 +34,12 @@ class RotationState {
                 magPitchAcc = rotMagnitude
             } else {
                 magRollAcc *= (magTimeConst - dTimeSecs) / magTimeConst
-                magRollAcc += Math.signum(relativeRoll) *
-                        rotMagnitude * (dTimeSecs / magTimeConst)
+                magRollAcc += Math.signum(relativeRoll) * rotMagnitude * (dTimeSecs / magTimeConst)
                 magPitchAcc *= (magTimeConst - dTimeSecs) / magTimeConst
-                magPitchAcc += Math.signum(relativePitch) *
-                        rotMagnitude * (dTimeSecs / magTimeConst)
+                magPitchAcc += Math.signum(relativePitch) * rotMagnitude * (dTimeSecs / magTimeConst)
             }
 
-            if (Math.abs(relativeRoll) > freeRollLimit ||
-                    Math.abs(relativePitch) > freePitchLimit) {
+            if (Math.abs(relativeRoll) > freeRollLimit || Math.abs(relativePitch) > freePitchLimit) {
                 freeRotation = false
             } else if (freeRotation) {
                 rollRevertRate = 0.0
@@ -54,10 +48,8 @@ class RotationState {
                 return
             }
 
-            val magTotalAcc: Double = Math.sqrt(0.5 * magRollAcc * magRollAcc +
-                    0.5 * magPitchAcc * magPitchAcc)
-            val goalRevertRate: Double =
-                    maxRevertRate * Math.exp(-magTotalAcc / revertRotConst)
+            val magTotalAcc: Double = Math.sqrt(0.5 * magRollAcc * magRollAcc + 0.5 * magPitchAcc * magPitchAcc)
+            val goalRevertRate: Double = maxRevertRate * Math.exp(-magTotalAcc / revertRotConst)
 
             if (goalRevertRate > rollRevertRate && dTimeSecs <= revertTimeConst) {
                 rollRevertRate *= (revertTimeConst - dTimeSecs) / revertTimeConst
@@ -65,6 +57,7 @@ class RotationState {
             } else {
                 rollRevertRate = goalRevertRate
             }
+
             if (goalRevertRate > pitchRevertRate && dTimeSecs <= revertTimeConst) {
                 pitchRevertRate *= (revertTimeConst - dTimeSecs) / revertTimeConst
                 pitchRevertRate += goalRevertRate * (dTimeSecs / revertTimeConst)
