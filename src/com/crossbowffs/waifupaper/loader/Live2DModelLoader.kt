@@ -11,7 +11,9 @@ import jp.live2d.framework.L2DPhysics
 import jp.live2d.framework.L2DPose
 import jp.live2d.motion.Live2DMotion
 import jp.live2d.util.Json
+import jp.live2d.utils.android.SimpleImage
 import java.io.File
+import javax.microedition.khronos.opengles.GL10
 
 /**
  * Where external assets are stored, relative to the external storage
@@ -250,6 +252,19 @@ object Live2DModelLoader {
     fun loadModel(context: Context, modelInfo: Live2DModelInfo) = when (modelInfo.location) {
         FileLocation.ASSETS -> loadInternalModel(context, modelInfo)
         FileLocation.EXTERNAL -> loadExternalModel(modelInfo)
+    }
+
+    /**
+     * Loads a background image.
+     *
+     * @param context A context instance used to access app assets.
+     * @param gl The OpenGL object. FIXME: This is likely a bit hacky
+     * @param backgroundPath The background image to load.
+     */
+    fun loadBackground(context: Context, gl: GL10?, backgroundPath: String): SimpleImage? {
+        //TODO: Allow loading from external sources
+        val loader = AssetFileLoader(context)
+        return loader.openStream(backgroundPath).use { SimpleImage(gl, it) }
     }
 
     /**

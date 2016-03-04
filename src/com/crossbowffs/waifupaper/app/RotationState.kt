@@ -1,12 +1,12 @@
 package com.crossbowffs.waifupaper.app
 
-class RelativeRotationGyro(
-        val freeRollLimit: Double,
-        val freePitchLimit: Double,
-        val maxRevertRate: Double,
-        val magTimeConst: Double,
-        val revertTimeConst: Double,
-        val revertRotConst: Double) {
+class RotationState {
+    private val freeRollLimit: Double = 0.5
+    private val freePitchLimit: Double = 0.3
+    private val maxRevertRate: Double = 20.0
+    private val magTimeConst: Double = 0.15
+    private val revertTimeConst: Double = 5.0
+    private val revertRotConst: Double = 0.15
 
     private var relativeRoll: Double = 0.0
     private var relativePitch: Double = 0.0
@@ -87,17 +87,6 @@ class RelativeRotationGyro(
 
     fun getRelativePitch(): Double {
         return relativePitch
-    }
-
-    fun reset() {
-        relativeRoll = 0.0
-        relativePitch = 0.0
-        prevTimeStampNs = 0L
-        magRollAcc = 0.0
-        magPitchAcc = 0.0
-        rollRevertRate = 0.0
-        pitchRevertRate = 0.0
-        freeRotation = true
     }
 
     private fun fixAngle(angle: Double): Double {

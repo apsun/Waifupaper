@@ -1,28 +1,32 @@
 package com.crossbowffs.waifupaper.app
 
-class Live2DOrienter(
+class BGModelPosition(
         val screenPivotX: Float,
         val screenPivotY: Float,
-        val modelMaxX: Float,
-        val modelMaxY: Float,
-        val holdDuration: Float,
-        val transitionSpeed: Float) {
+        val bgMaxShiftX: Float,
+        val bgMaxShiftY: Float) {
+
+    private val modelMaxX: Float = 1f
+    private val modelMaxY: Float = 1f
+    private val holdDuration: Float = 1.0f
+    private val transitionSpeed: Float = 4.0f
 
     private enum class TransitionStage {
         FOLLOW_TOUCH,
         PAUSE,
-        REVERT_TO_NEUTRAL,
         FOLLOW_GYRO;
     }
 
-    private val gyroReader = RelativeRotationGyro(0.3, 0.2, 5.0, 0.15, 4.0, 0.15)
+    private val rotationState = RotationState()
     private val maxUserRoll = 1
     private val maxUserPitch = 0.5f
-    private val XMaxDiff = Math.max(screenPivotX, 1 - screenPivotX)
-    private val YMaxDiff = Math.max(screenPivotY, 1 - screenPivotY)
+    private val XMaxDiff = Math.min(screenPivotX, 1 - screenPivotX)
+    private val YMaxDiff = Math.min(screenPivotY, 1 - screenPivotY)
 
     private var modelX: Float = 0f
     private var modelY: Float = 0f
+    private var bgX: Float = 0f
+    private var bgY: Float = 0f
 
     private var touchFollowState: TransitionStage = TransitionStage.FOLLOW_GYRO
     private var screenTouchX: Float = 0f
@@ -30,37 +34,45 @@ class Live2DOrienter(
     private var holdTimer: Float = 0f
     private var prevTimeStampNs: Long = 0L
 
-    fun getModelOrientation(timeStampNs: Long): Pair<Float, Float> {
+    fun update(timeStampNs: Long) {
         if (prevTimeStampNs != 0L) {
             val dTimeSecs: Float = (timeStampNs - prevTimeStampNs) / 1000000000f
             if (touchFollowState == TransitionStage.FOLLOW_TOUCH) {
-                modelX = moveToward(modelX,
-                        modelMaxX * (screenTouchX - screenPivotX) / XMaxDiff , transitionSpeed)
-                modelY = moveToward(modelY,
-                        modelMaxY * (screenTouchY - screenPivotY) / YMaxDiff , transitionSpeed)
+                modelX = moveToward(modelX, modelMaxX * (screenTouchX - screenPivotX) / XMaxDiff,
+                        transitionSpeed * modelMaxX * XMaxDiff * dTimeSecs)
+                modelY = moveToward(modelY, modelMaxY * (screenPivotY - screenTouchY) / YMaxDiff,
+                        transitionSpeed * modelMaxY * YMaxDiff * dTimeSecs)
             } else if (touchFollowState == TransitionStage.PAUSE) {
                 holdTimer = moveToward(holdTimer, 0f, dTimeSecs)
                 if (holdTimer == 0f) {
-                    touchFollowState = TransitionStage.REVERT_TO_NEUTRAL
-                }
-            } else if (touchFollowState == TransitionStage.REVERT_TO_NEUTRAL) {
-                modelX = moveToward(modelX, 0f, transitionSpeed * dTimeSecs)
-                modelY = moveToward(modelY, 0f, transitionSpeed * dTimeSecs)
-                if (modelX == 0f && modelY == 0f) {
                     touchFollowState = TransitionStage.FOLLOW_GYRO
                 }
             } else if (touchFollowState == TransitionStage.FOLLOW_GYRO) {
-                modelX = -modelMaxX / maxUserRoll * gyroReader.getRelativeRoll().toFloat()
-                modelY = modelMaxY / maxUserPitch * gyroReader.getRelativePitch().toFloat()
+                val targetX = -modelMaxX / maxUserRoll * rotationState.getRelativeRoll().toFloat()
+                val targetY = modelMaxY / maxUserPitch * rotationState.getRelativePitch().toFloat()
+                modelX = moveToward(modelX, targetX,
+                        transitionSpeed * modelMaxX * XMaxDiff * dTimeSecs)
+                modelY = moveToward(modelY, targetY,
+                        transitionSpeed * modelMaxY * YMaxDiff * dTimeSecs)
             }
+            bgX = clamp(-bgMaxShiftX * rotationState.getRelativeRoll().toFloat(),
+                    -bgMaxShiftX, bgMaxShiftX)
+            bgY = clamp(bgMaxShiftY * rotationState.getRelativePitch().toFloat(),
+                    -bgMaxShiftY, bgMaxShiftY)
         }
         prevTimeStampNs = timeStampNs
-        return Pair(modelX, modelY)
+    }
+
+    fun getModelXY(): Pair<Float, Float> {
+        return modelX to modelY
+    }
+
+    fun getBGShiftXY(): Pair<Float, Float> {
+        return bgX to bgY
     }
 
     fun touchDown(normalizedX: Float, normalizedY: Float) {
         touchFollowState = TransitionStage.FOLLOW_TOUCH
-        gyroReader.reset()
         screenTouchX = normalizedX
         screenTouchY = normalizedY
     }
@@ -76,9 +88,7 @@ class Live2DOrienter(
     }
 
     fun gyroChanged(gyroX: Float, gyroY: Float, gyroZ: Float, timeStampNs: Long) {
-        if (touchFollowState == TransitionStage.FOLLOW_GYRO) {
-            gyroReader.update(gyroX, gyroY, gyroZ, timeStampNs)
-        }
+        rotationState.update(gyroX, gyroY, gyroZ, timeStampNs)
     }
 
     private fun moveToward(current: Float, goal: Float, stepSize: Float): Float {
@@ -87,5 +97,9 @@ class Live2DOrienter(
         } else {
             return current - Math.signum(current - goal) * stepSize
         }
+    }
+
+    private fun clamp(value: Float, min: Float, max: Float): Float {
+        return Math.max(Math.min(value, max), min)
     }
 }

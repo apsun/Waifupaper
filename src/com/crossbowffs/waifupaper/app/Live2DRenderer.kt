@@ -8,23 +8,26 @@ import jp.live2d.android.UtOpenGL
 import jp.live2d.framework.*
 import jp.live2d.motion.Live2DMotion
 import jp.live2d.motion.MotionQueueManager
+import jp.live2d.utils.android.SimpleImage
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer {
     private val ENABLE_SOUNDS = true
+    private var canvasWidth: Float = 0f
+    private var canvasHeight: Float = 0f
 
     private var gl: GL10? = null
     private val motionManager: MotionQueueManager
-    private val dragMgr: L2DTargetPoint
     private var modelWrapper: Live2DModelWrapper? = null
     private var soundPool: SoundPoolWrapper? = null
     private var motionGroupIndex: Int = -1
     private var motionIndex: Int = -1
+    private var bg: SimpleImage? = null
+    private var bgModelPosition: BGModelPosition? = null
 
     init {
-        dragMgr = L2DTargetPoint()
         motionManager = MotionQueueManager()
     }
 
@@ -58,6 +61,8 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         gl.glDisable(GL10.GL_DEPTH_TEST)
         gl.glDisable(GL10.GL_CULL_FACE)
 
+        bg?.draw(gl)
+
         if (!hasModel) {
             return
         }
@@ -74,18 +79,31 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
 
         model.saveParam()
 
-        dragMgr.update()
-        val dragX = dragMgr.x
-        val dragY = dragMgr.y
-        model.addToParamFloat(L2DStandardID.PARAM_ANGLE_X, dragX * 15)
-        model.addToParamFloat(L2DStandardID.PARAM_ANGLE_Y, dragY * 15)
-        model.addToParamFloat(L2DStandardID.PARAM_BODY_ANGLE_X, dragX * 30)
+        bgModelPosition?.update(System.nanoTime())
+        val modelXY = bgModelPosition?.getModelXY()
+        val dragX = modelXY?.first ?: 0f
+        val dragY = modelXY?.second ?: 0f
+        model.addToParamFloat(L2DStandardID.PARAM_ANGLE_X, dragX * 30f)
+        model.addToParamFloat(L2DStandardID.PARAM_ANGLE_Y, dragY * 30f)
+        model.addToParamFloat(L2DStandardID.PARAM_BODY_ANGLE_X, dragX * 10f)
+
+        if (bgModelPosition != null) {
+            val bgShiftXY = bgModelPosition!!.getBGShiftXY()
+            val bgMaxShiftXY =
+                    bgModelPosition!!.bgMaxShiftX to bgModelPosition!!.bgMaxShiftY
+            bg?.setDrawRect(
+                    (bgShiftXY.first - bgMaxShiftXY.first) * canvasWidth,
+                    (1f + bgShiftXY.first + bgMaxShiftXY.first) * canvasWidth,
+                    (1f + bgShiftXY.second + bgMaxShiftXY.second) * canvasHeight,
+                    (bgShiftXY.second - bgMaxShiftXY.second) * canvasHeight)
+        }
 
         physics?.updateParam(model)
         pose?.updateParam(model)
 
         model.update()
         // TODO: For some reason this doesn't work
+        // FIXME: The background flashes black sometimes after loading a pose
         // gl.glPushMatrix()
         // gl.glMultMatrixf(layoutMatrix.array, 0)
         model.draw()
@@ -97,11 +115,14 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
         if (!hasModel) return
-        val modelWidth = model.canvasWidth
+        // TODO This projection matrix may be too large, exposing
+        // TODO     chopped off limbs where the model canvas ends
+        canvasWidth = model.canvasWidth
+        canvasHeight = model.canvasWidth * height / width
         gl.glOrthof(
             0f,
-            modelWidth,
-            modelWidth * height / width,
+            canvasWidth,
+            canvasHeight,
             0f,
             0.5f,
             -0.5f)
@@ -112,6 +133,11 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         if (modelWrapper != null) {
             loadGLTextures(modelWrapper!!)
         }
+        val width: Int = context.resources.displayMetrics.widthPixels
+        val height: Int = context.resources.displayMetrics.heightPixels
+        canvasWidth = model.canvasWidth
+        canvasHeight = model.canvasWidth * height / width
+        loadBackground()
     }
 
     fun onResume() {
@@ -162,6 +188,10 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
         motionIndex = 0
     }
 
+    fun setPositioner(positioner: BGModelPosition) {
+        this.bgModelPosition = positioner
+    }
+
     fun release() {
         motionGroupIndex = -1
         motionIndex = -1
@@ -174,5 +204,13 @@ class Live2DRenderer(private var context: Context) : GLWallpaperService.Renderer
             model.setGL(null)
             modelWrapper = null
         }
+    }
+
+    private fun loadBackground() {
+        //TODO: Custom background loading
+        bg = Live2DModelLoader.loadBackground(context, gl, "testBG.png")
+        bg!!.setDrawRect(0f, canvasWidth, canvasHeight, 0f)
+        //TODO Read from preferences to determine area to crop
+        bg!!.setUVRect(0.0f, 1.0f, 0.0f, 1.0f)
     }
 }
