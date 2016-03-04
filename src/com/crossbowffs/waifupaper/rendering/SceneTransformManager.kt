@@ -1,6 +1,6 @@
 package com.crossbowffs.waifupaper.rendering
 
-class ViewTransformState(
+class SceneTransformManager(
     val screenPivotX: Float,
     val screenPivotY: Float,
     val bgMaxShiftX: Float,
@@ -17,7 +17,7 @@ class ViewTransformState(
         FOLLOW_GYRO
     }
 
-    private val gyroState = GyroState()
+    private val gyroState = GyroscopeState()
     private val maxUserRoll = 1
     private val maxUserPitch = 0.5f
     private val XMaxDiff = Math.min(screenPivotX, 1 - screenPivotX)

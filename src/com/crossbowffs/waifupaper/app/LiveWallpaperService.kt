@@ -11,9 +11,10 @@ import android.os.HandlerThread
 import android.preference.PreferenceManager
 import android.view.MotionEvent
 import android.view.SurfaceHolder
+import com.crossbowffs.waifupaper.loader.AssetLoader
 import com.crossbowffs.waifupaper.loader.FileLocation
-import com.crossbowffs.waifupaper.rendering.Live2DRenderer
-import com.crossbowffs.waifupaper.rendering.ViewTransformState
+import com.crossbowffs.waifupaper.rendering.SceneRenderer
+import com.crossbowffs.waifupaper.rendering.SceneTransformManager
 import com.crossbowffs.waifupaper.utils.useNotNull
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
 
@@ -41,17 +42,17 @@ class LiveWallpaperService : GLWallpaperService() {
 
     private inner class LiveWallpaperEngine : GLWallpaperService.GLEngine(),
             SharedPreferences.OnSharedPreferenceChangeListener {
-        private lateinit var renderer: Live2DRenderer
+        private lateinit var renderer: SceneRenderer
         private lateinit var screenDimensions: Pair<Int, Int>
-        private lateinit var bgModelPosition: ViewTransformState
+        private lateinit var bgModelPosition: SceneTransformManager
         private lateinit var sensorListener: SensorEventListener
         private lateinit var sensorThread: HandlerThread
         private lateinit var sensorHandler: Handler
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
-            renderer = Live2DRenderer(applicationContext)
-            getSelectedModel().useNotNull { renderer.setModel(it.first, it.second) }
+            renderer = SceneRenderer(applicationContext)
+            getSelectedModel().useNotNull { setModel(it.first, it.second) }
             setRenderer(renderer)
             renderMode = GLWallpaperService.GLEngine.RENDERMODE_CONTINUOUSLY
             preferences.registerOnSharedPreferenceChangeListener(this)
@@ -59,8 +60,8 @@ class LiveWallpaperService : GLWallpaperService() {
             screenDimensions = Pair(displayMetrics.widthPixels, displayMetrics.heightPixels)
             this.setTouchEventsEnabled(true)
 
-            bgModelPosition = ViewTransformState(0.5f, 0.5f, 0.14f, 0.07f)
-            renderer.setPositioner(bgModelPosition)
+            bgModelPosition = SceneTransformManager(0.5f, 0.5f, 0.14f, 0.07f)
+            renderer.setTransformManager(bgModelPosition)
             sensorListener = object: SensorEventListener {
                 override fun onSensorChanged(event: SensorEvent) {
                     bgModelPosition.gyroChanged(event.values[0], event.values[1],
@@ -106,8 +107,19 @@ class LiveWallpaperService : GLWallpaperService() {
 
         override fun onSharedPreferenceChanged(p0: SharedPreferences?, p1: String?) {
             if (p1 == "selectedModel") {
-                getSelectedModel().useNotNull { renderer.setModel(it.first, it.second) }
+                getSelectedModel().useNotNull { setModel(it.first, it.second) }
             }
+        }
+
+        private fun setModel(name: String, location: FileLocation) {
+            // TODO: load in background thread (see AsyncTask)
+            val newModelInfo = AssetLoader.loadModelInfo(applicationContext, name, location)
+            val newModelData = AssetLoader.loadModel(applicationContext, newModelInfo)
+            val soundPool = AssetLoader.loadSounds(applicationContext, newModelInfo)
+            val backgrond = AssetLoader.loadBackground(applicationContext, "back_class_normal.png", FileLocation.INTERNAL)
+            renderer.setModel(newModelData)
+            renderer.setSoundPool(soundPool)
+            renderer.setBackground(backgrond)
         }
     }
 }

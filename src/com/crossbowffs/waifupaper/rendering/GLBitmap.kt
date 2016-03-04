@@ -11,7 +11,7 @@ import javax.microedition.khronos.opengles.GL10
 
 // Adapted from:
 // http://obviam.net/index.php/texture-mapping-opengl-android-displaying-images-using-opengl-and-squares/
-class GLBitmap(private val bitmap: Bitmap) {
+class GLBitmap(val bitmap: Bitmap) {
     private var gl: GL10? = null
     private var textureId: Int? = null
 
@@ -24,9 +24,9 @@ class GLBitmap(private val bitmap: Bitmap) {
 
     val textureCoords = floatArrayOf(
         0.0f, 1.0f, // top left     (V2)
-        0.0f, 0.0f, // bottom left	(V1)
-        1.0f, 1.0f, // top right	(V4)
-        1.0f, 0.0f  // bottom right	(V3)
+        0.0f, 0.0f, // bottom left  (V1)
+        1.0f, 1.0f, // top right    (V4)
+        1.0f, 0.0f  // bottom right (V3)
     )
 
     val verticesBuffer: FloatBuffer
@@ -107,5 +107,10 @@ class GLBitmap(private val bitmap: Bitmap) {
         // Disable the client state before leaving
         gl.glDisableClientState(GL10.GL_VERTEX_ARRAY)
         gl.glDisableClientState(GL10.GL_TEXTURE_COORD_ARRAY)
+    }
+
+    fun recycle() {
+        setGL(null)
+        bitmap.recycle()
     }
 }

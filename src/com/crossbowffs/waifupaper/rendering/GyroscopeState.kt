@@ -1,6 +1,6 @@
 package com.crossbowffs.waifupaper.rendering
 
-class GyroState {
+class GyroscopeState {
     private val freeRollLimit: Double = 0.5
     private val freePitchLimit: Double = 0.3
     private val maxRevertRate: Double = 20.0
