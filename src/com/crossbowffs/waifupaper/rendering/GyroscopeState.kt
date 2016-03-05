@@ -1,9 +1,9 @@
 package com.crossbowffs.waifupaper.rendering
 
 class GyroscopeState {
-    private val freeRollLimit: Double = 0.5
-    private val freePitchLimit: Double = 0.3
-    private val maxRevertRate: Double = 20.0
+    private val freeRollLimit: Double = 0.6
+    private val freePitchLimit: Double = 0.4
+    private val maxRevertRate: Double = 6.0
     private val magTimeConst: Double = 0.15
     private val revertTimeConst: Double = 5.0
     private val revertRotConst: Double = 0.15
@@ -65,8 +65,10 @@ class GyroscopeState {
                 pitchRevertRate = goalRevertRate
             }
 
-            relativeRoll = moveToward(relativeRoll, 0.0, rollRevertRate * dTimeSecs)
-            relativePitch = moveToward(relativePitch, 0.0, pitchRevertRate * dTimeSecs)
+            val rollSlowdownFactor = clamp(Math.sqrt(Math.abs(relativeRoll) / freeRollLimit), 0.1, 1.0)
+            val pitchSlowdownFactor = clamp(Math.sqrt(Math.abs(relativePitch) / freePitchLimit), 0.1, 1.0)
+            relativeRoll = moveToward(relativeRoll, 0.0, rollRevertRate * rollSlowdownFactor * dTimeSecs)
+            relativePitch = moveToward(relativePitch, 0.0, pitchRevertRate * pitchSlowdownFactor * dTimeSecs)
             if (relativeRoll == 0.0 && relativePitch == 0.0) {
                 freeRotation = true
             }
@@ -98,5 +100,9 @@ class GyroscopeState {
         } else {
             return current - Math.signum(current - goal) * stepSize
         }
+    }
+
+    private fun clamp(value: Double, min: Double, max: Double): Double {
+        return Math.max(Math.min(value, max), min)
     }
 }

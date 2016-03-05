@@ -17,8 +17,7 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer {
-    private var canvasWidth: Float = 0f
-    private var canvasHeight: Float = 0f
+    private var heightRatio: Float = 1f
 
     private var gl: GL10? = null
 
@@ -55,9 +54,24 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
         gl.glDisable(GL10.GL_DEPTH_TEST)
         gl.glDisable(GL10.GL_CULL_FACE)
 
+        if (background != null && transformManager != null) {
+            val bgShiftXY = transformManager!!.getBGShiftXY()
+            val bgMaxShiftX = transformManager!!.bgMaxShiftX
+            val bgMaxShiftY = transformManager!!.bgMaxShiftY
+            background!!.setBounds(
+                    bgShiftXY.x - bgMaxShiftX,
+                    1f + bgShiftXY.x + bgMaxShiftX,
+                    heightRatio + bgShiftXY.y + bgMaxShiftY,
+                    bgShiftXY.y - bgMaxShiftY
+            )
+        }
+
         background?.draw(gl)
 
         val model = this.model ?: return
+        //TODO It'll just show the BG if there's no model. Should I explicitly make it a black screen?
+
+        gl.glScalef(1f / model.canvasWidth, 1f / model.canvasWidth, 1f / model.canvasWidth)
 
         motionManager?.update()
 
@@ -68,18 +82,6 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
         model.addToParamFloat(L2DStandardID.PARAM_ANGLE_X, dragX * 30f)
         model.addToParamFloat(L2DStandardID.PARAM_ANGLE_Y, dragY * 30f)
         model.addToParamFloat(L2DStandardID.PARAM_BODY_ANGLE_X, dragX * 10f)
-
-        if (background != null && transformManager != null) {
-            val bgShiftXY = transformManager!!.getBGShiftXY()
-            val bgMaxShiftX = transformManager!!.bgMaxShiftX
-            val bgMaxShiftY = transformManager!!.bgMaxShiftY
-            background!!.setBounds(
-                (bgShiftXY.x - bgMaxShiftX) * canvasWidth,
-                (1f + bgShiftXY.x + bgMaxShiftX) * canvasWidth,
-                (1f + bgShiftXY.y + bgMaxShiftY) * canvasHeight,
-                (bgShiftXY.y - bgMaxShiftY) * canvasHeight
-            )
-        }
 
         physics?.updateParam(model)
         pose?.updateParam(model)
@@ -98,13 +100,11 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
-        if (model == null) return // TODO: INCORRECT
-        canvasWidth = model!!.canvasWidth
-        canvasHeight = model!!.canvasWidth * height / width
+        heightRatio = height.toFloat() / width.toFloat()
         gl.glOrthof(
             0f,
-            canvasWidth,
-            canvasHeight,
+            1f,
+            heightRatio,
             0f,
             0.5f,
             -0.5f)
@@ -114,16 +114,6 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
         this.gl = gl
         genModelTextures()
         genBackgroundTextures()
-        // TODO: CODE BELOW IS INCORRECT
-        // we need to handle cases where view is NOT whole screen
-        // e.g. inside preview app
-        val width: Int = context.resources.displayMetrics.widthPixels
-        val height: Int = context.resources.displayMetrics.heightPixels
-        // TODO: INCORRECT
-        // model may sometimes be null if no model is set. In that case,
-        // display a black screen w/ "loading..." text
-        canvasWidth = model!!.canvasWidth
-        canvasHeight = model!!.canvasWidth * height / width
     }
 
     fun onResume() {
@@ -150,7 +140,7 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
     fun genBackgroundTextures() {
         val background = this.background ?: return
         background.setGL(gl)
-        background.setBounds(0f, canvasWidth, canvasHeight, 0f)
+        background.setBounds(0f, 1f, heightRatio, 0f)
     }
 
     fun releaseModel() {
