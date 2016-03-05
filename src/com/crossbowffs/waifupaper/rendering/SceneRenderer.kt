@@ -17,6 +17,12 @@ import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
 class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer {
+    var surfaceWidth: Int? = null
+        private set
+
+    var surfaceHeight: Int? = null
+        private set
+
     private var heightRatio: Float = 1f
 
     private var gl: GL10? = null
@@ -100,6 +106,10 @@ class SceneRenderer(private var context: Context) : GLWallpaperService.Renderer 
         gl.glViewport(0, 0, width, height)
         gl.glMatrixMode(GL10.GL_PROJECTION)
         gl.glLoadIdentity()
+
+        surfaceWidth = width
+        surfaceHeight = height
+
         heightRatio = height.toFloat() / width.toFloat()
         gl.glOrthof(
             0f,

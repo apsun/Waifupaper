@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PreferenceScreen xmlns:android="http://schemas.android.com/apk/res/android">
+    <PreferenceCategory android:title="Live2D">
+        <SwitchPreference
+            android:key="pref_enable_tilt"
+            android:title="Enable tilt"
+            android:defaultValue="true"/>
+        <SwitchPreference
+            android:key="pref_enable_touch"
+            android:title="Enable touch"
+            android:defaultValue="true"/>
+        <SwitchPreference
+            android:key="pref_enable_sound"
+            android:title="Enable sound"
+            android:defaultValue="false"/>
+    </PreferenceCategory>
+    <PreferenceCategory android:title="Background">
+        <SwitchPreference
+            android:key="pref_enable_parallax"
+            android:title="Enable parallax"
+            android:defaultValue="true"/>
+    </PreferenceCategory>
+</PreferenceScreen>

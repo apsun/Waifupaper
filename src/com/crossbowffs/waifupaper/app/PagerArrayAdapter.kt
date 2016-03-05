@@ -1,15 +1,13 @@
 package com.crossbowffs.waifupaper.app
 
-import android.support.v7.widget.RecyclerView
+import android.support.v4.view.PagerAdapter
+import android.view.View
+import android.view.ViewGroup
 
-abstract class RecyclerArrayAdapter<T, VH : RecyclerView.ViewHolder> : RecyclerView.Adapter<VH>() {
+abstract class PagerArrayAdapter<T> : PagerAdapter() {
     private val objects = mutableListOf<T>()
 
     var notifyOnChange = true
-
-    init {
-        setHasStableIds(true)
-    }
 
     fun add(value: T) {
         objects.add(value)
@@ -48,17 +46,21 @@ abstract class RecyclerArrayAdapter<T, VH : RecyclerView.ViewHolder> : RecyclerV
         return objects[position]
     }
 
-    override fun getItemCount(): Int {
+    override fun getCount(): Int {
         return objects.size
     }
 
-    override fun getItemId(position: Int): Long {
-        return position.toLong()
+    override fun instantiateItem(container: ViewGroup?, position: Int): Any? {
+        return instantiateItem(container, getItem(position))
     }
 
-    override fun onBindViewHolder(vh: VH, i: Int) {
-        onBindViewHolder(vh, getItem(i))
+    override fun destroyItem(container: ViewGroup?, position: Int, obj: Any?) {
+        container?.removeView(obj as View?)
     }
 
-    abstract fun onBindViewHolder(vh: VH, value: T)
+    override fun isViewFromObject(view: View?, obj: Any?): Boolean {
+        return view == obj
+    }
+
+    abstract fun instantiateItem(container: ViewGroup?, value: T): View
 }

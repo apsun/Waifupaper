@@ -1,125 +1,41 @@
 package com.crossbowffs.waifupaper.app
 
-import android.content.Context
-import android.content.SharedPreferences
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
-import android.os.Handler
-import android.os.HandlerThread
-import android.preference.PreferenceManager
 import android.view.MotionEvent
 import android.view.SurfaceHolder
-import com.crossbowffs.waifupaper.loader.AssetLoader
-import com.crossbowffs.waifupaper.loader.FileLocation
-import com.crossbowffs.waifupaper.rendering.SceneRenderer
-import com.crossbowffs.waifupaper.rendering.SceneTransformManager
-import com.crossbowffs.waifupaper.utils.useNotNull
 import net.rbgrn.android.glwallpaperservice.GLWallpaperService
 
 class LiveWallpaperService : GLWallpaperService() {
-    private lateinit var preferences: SharedPreferences
-    private lateinit var sensorManager: SensorManager
-    private lateinit var sensor: Sensor
-
-    override fun onCreate() {
-        super.onCreate()
-        preferences = PreferenceManager.getDefaultSharedPreferences(this)
-        sensorManager = getSystemService(Context.SENSOR_SERVICE) as SensorManager
-        sensor = sensorManager.getDefaultSensor(Sensor.TYPE_GYROSCOPE)
-    }
-
-    private fun getSelectedModel(): Pair<String, FileLocation>? {
-        val data = preferences.getString("selectedModel", null)?.split(':')
-        if (data != null) {
-            return data[0] to FileLocation.valueOf(data[1])
-        }
-        return null
-    }
-
     override fun onCreateEngine(): GLEngine = LiveWallpaperEngine()
 
-    private inner class LiveWallpaperEngine : GLWallpaperService.GLEngine(),
-            SharedPreferences.OnSharedPreferenceChangeListener {
-        private lateinit var renderer: SceneRenderer
-        private lateinit var screenDimensions: Pair<Int, Int>
-        private lateinit var bgModelPosition: SceneTransformManager
-        private lateinit var sensorListener: SensorEventListener
-        private lateinit var sensorThread: HandlerThread
-        private lateinit var sensorHandler: Handler
+    private inner class LiveWallpaperEngine : GLWallpaperService.GLEngine(), GLEngine2 {
+        private val sceneManager: SceneManager
+
+        init {
+            sceneManager = SceneManager(this@LiveWallpaperService, this)
+        }
 
         override fun onCreate(surfaceHolder: SurfaceHolder?) {
             super.onCreate(surfaceHolder)
-            renderer = SceneRenderer(applicationContext)
-            getSelectedModel().useNotNull { setModel(it.first, it.second) }
-            setRenderer(renderer)
-            renderMode = GLWallpaperService.GLEngine.RENDERMODE_CONTINUOUSLY
-            preferences.registerOnSharedPreferenceChangeListener(this)
-            val displayMetrics = applicationContext.resources.displayMetrics
-            screenDimensions = Pair(displayMetrics.widthPixels, displayMetrics.heightPixels)
-            this.setTouchEventsEnabled(true)
-
-            bgModelPosition = SceneTransformManager(0.5f, 0.5f, 0.14f, 0.07f)
-            renderer.setTransformManager(bgModelPosition)
-            sensorListener = object: SensorEventListener {
-                override fun onSensorChanged(event: SensorEvent) {
-                    bgModelPosition.gyroChanged(event.values[0], event.values[1],
-                            event.values[2], event.timestamp)
-                }
-                override fun onAccuracyChanged(sensor: Sensor, accuracy: Int) {}
-            }
-            sensorThread = HandlerThread("Sensor Thread", Thread.MAX_PRIORITY)
-            sensorThread.start()
-            sensorHandler = Handler(sensorThread.looper)
+            sceneManager.onCreate()
         }
 
         override fun onResume() {
             super.onResume()
-            sensorManager.registerListener(
-                    sensorListener, sensor, SensorManager.SENSOR_DELAY_GAME, sensorHandler)
-            renderer.onResume()
+            sceneManager.onResume()
         }
 
         override fun onPause() {
             super.onPause()
-            sensorManager.unregisterListener(sensorListener)
-            renderer.onPause()
+            sceneManager.onPause()
         }
 
         override fun onDestroy() {
             super.onDestroy()
-            renderer.release()
-            sensorThread.quitSafely()
+            sceneManager.onDestroy()
         }
 
         override fun onTouchEvent(event: MotionEvent) {
-            when (event.action) {
-                MotionEvent.ACTION_DOWN ->
-                    bgModelPosition.touchDown(event.x / screenDimensions.first,
-                            event.y / screenDimensions.second)
-                MotionEvent.ACTION_MOVE ->
-                    bgModelPosition.touchChanged(event.x / screenDimensions.first,
-                            event.y / screenDimensions.second)
-                MotionEvent.ACTION_UP -> bgModelPosition.touchUp()
-            }
-        }
-
-        override fun onSharedPreferenceChanged(p0: SharedPreferences?, p1: String?) {
-            if (p1 == "selectedModel") {
-                getSelectedModel().useNotNull { setModel(it.first, it.second) }
-            }
-        }
-
-        private fun setModel(name: String, location: FileLocation) {
-            // TODO: load in background thread (see AsyncTask)
-            val newModelInfo = AssetLoader.loadModelInfo(applicationContext, name, location)
-            val newModelData = AssetLoader.loadModel(applicationContext, newModelInfo)
-            val soundPool = AssetLoader.loadSounds(applicationContext, newModelInfo)
-            val backgrond = AssetLoader.loadBackground(applicationContext, "back_class_normal.png", FileLocation.INTERNAL)
-            renderer.setModel(newModelData)
-            renderer.setSoundPool(soundPool)
-            renderer.setBackground(backgrond)
+            sceneManager.onTouchEvent(event)
         }
     }
 }
