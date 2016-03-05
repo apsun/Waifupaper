@@ -16,7 +16,6 @@ class SceneGLSurfaceView(context: Context, attrs: AttributeSet) : GLSurfaceView(
         sceneManager = SceneManager(context, this)
         sceneManager.onCreate()
         setOnTouchListener{ view, motionEvent -> sceneManager.onTouchEvent(motionEvent) }
-        sceneManager.initialize()
     }
 
     override fun onResume() {

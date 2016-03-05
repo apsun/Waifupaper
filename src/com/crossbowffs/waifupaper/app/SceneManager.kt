@@ -14,6 +14,7 @@ import com.crossbowffs.waifupaper.loader.FileLocation
 import com.crossbowffs.waifupaper.rendering.SceneRenderer
 import com.crossbowffs.waifupaper.rendering.SceneTransformManager
 import com.crossbowffs.waifupaper.utils.loge
+import com.crossbowffs.waifupaper.utils.useNotNull
 
 class SceneManager(private val context: Context, private val engine: GLEngine2) :
         SharedPreferences.OnSharedPreferenceChangeListener,
@@ -25,10 +26,10 @@ class SceneManager(private val context: Context, private val engine: GLEngine2) 
     private lateinit var transformManager: SceneTransformManager
     private lateinit var renderer: SceneRenderer
 
-    private var enableTilt: Boolean = false
-    private var enableTouch: Boolean = false
-    private var enableSound: Boolean = false
-    private var enableWallpaperParallax: Boolean = false
+    private var enableTilt: Boolean = true
+    private var enableTouch: Boolean = true
+    private var enableSound: Boolean = true
+    private var enableWallpaperParallax: Boolean = true
 
     fun onCreate() {
         preferences = PreferenceManager.getDefaultSharedPreferences(context)
@@ -43,10 +44,8 @@ class SceneManager(private val context: Context, private val engine: GLEngine2) 
         // Must be called AFTER setRenderer, since the async GL runner queue
         // is initialized after that call
         preferences.registerOnSharedPreferenceChangeListener(this)
-    }
-
-    fun initialize() {
-        setSelectedModedlFromPrefs()
+        updateSelectedModel()
+        updateSelectedBackground()
     }
 
     fun onResume() {
@@ -91,11 +90,11 @@ class SceneManager(private val context: Context, private val engine: GLEngine2) 
     override fun onSharedPreferenceChanged(prefs: SharedPreferences, key: String) {
         // TODO
         when (key) {
-            PrefConsts.PREF_MODEL_NAME -> setSelectedModedlFromPrefs()
+            PrefConsts.PREF_MODEL_NAME -> updateSelectedModel()
             PrefConsts.PREF_ENABLE_MODEL_TILT -> null
             PrefConsts.PREF_ENABLE_MODEL_TOUCH -> null
             PrefConsts.PREF_ENABLE_SOUND -> null
-            PrefConsts.PREF_BACKGROUND_FILE_NAME -> null
+            PrefConsts.PREF_BACKGROUND_FILE_NAME -> updateSelectedBackground()
             PrefConsts.PREF_ENABLE_BACKGROUND_PARALLAX -> null
         }
     }
@@ -104,30 +103,32 @@ class SceneManager(private val context: Context, private val engine: GLEngine2) 
 
     }
 
-    fun setSelectedModedlFromPrefs() {
-        val s = getSelectedModel() ?: "Epsilon" to FileLocation.INTERNAL
-        setModel(s.first, s.second)
-    }
-
-    private fun getSelectedModel(): Pair<String, FileLocation>? {
+    fun updateSelectedModel() {
         val data = preferences.getString(PrefConsts.PREF_MODEL_NAME, null)?.split(':')
-        if (data != null) {
-            return data[0] to FileLocation.valueOf(data[1])
-        }
-        return null
-    }
-
-    private fun setModel(name: String, location: FileLocation) {
+        val name = data?.get(0) ?: "Epsilon"
+        val location = data?.get(1).useNotNull { FileLocation.valueOf(it) } ?: FileLocation.INTERNAL
         (object : AsyncTask<Unit, Unit, Unit>() {
-            override fun doInBackground(vararg p0: Unit?) {
+            override fun doInBackground(vararg params: Unit?) {
                 val newModelInfo = AssetLoader.loadModelInfo(context, name, location)
                 val newModelData = AssetLoader.loadModel(context, newModelInfo)
                 val soundPool = AssetLoader.loadSounds(context, newModelInfo)
-                val backgrond = AssetLoader.loadBackground(context, "back_class_normal.png", FileLocation.INTERNAL)
                 engine.queueEvent(Runnable {
                     renderer.setModel(newModelData)
                     renderer.setSoundPool(soundPool)
-                    renderer.setBackground(backgrond)
+                })
+            }
+        }).execute()
+    }
+
+    fun updateSelectedBackground() {
+        // TODO
+        val name = "back_class_normal.png"
+        val location = FileLocation.INTERNAL
+        (object : AsyncTask<Unit, Unit, Unit>() {
+            override fun doInBackground(vararg params: Unit?) {
+                val background = AssetLoader.loadBackground(context, name, location)
+                engine.queueEvent(Runnable {
+                    renderer.setBackground(background)
                 })
             }
         }).execute()
