@@ -112,13 +112,13 @@ class MainActivity : PrivilegedActivity() {
 
     override fun onRequestPermissionsResult(requestCode: Int, granted: Boolean) {
         if (requestCode != REQUEST_STORAGE_READ) return
-        (object : AsyncTask<Void, Void, Array<Live2DModelInfo>>() {
-            override fun doInBackground(vararg params: Void?): Array<Live2DModelInfo> {
+        (object : AsyncTask<Unit, Unit, Array<Live2DModelInfo>>() {
+            override fun doInBackground(vararg params: Unit?): Array<Live2DModelInfo> {
                 return AssetLoader.enumerateModels(this@MainActivity, granted)
             }
 
-            override fun onPostExecute(result: Array<Live2DModelInfo>?) {
-                setModelList(result!!)
+            override fun onPostExecute(result: Array<Live2DModelInfo>) {
+                setModelList(result)
             }
         }).execute()
     }

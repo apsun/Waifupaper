@@ -10,4 +10,7 @@ interface GLEngine2 {
     fun queueEvent(runnable: Runnable)
     fun requestRender()
     fun setRenderer(renderer: GLWallpaperService.Renderer)
+    fun queueEvent(runnable: () -> Unit) {
+        queueEvent(Runnable(runnable))
+    }
 }

@@ -6,13 +6,13 @@ import android.hardware.Sensor
 import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
-import android.os.AsyncTask
 import android.preference.PreferenceManager
 import android.view.MotionEvent
 import com.crossbowffs.waifupaper.loader.AssetLoader
 import com.crossbowffs.waifupaper.loader.FileLocation
 import com.crossbowffs.waifupaper.rendering.SceneRenderer
 import com.crossbowffs.waifupaper.rendering.SceneTransformManager
+import com.crossbowffs.waifupaper.utils.async
 import com.crossbowffs.waifupaper.utils.loge
 import com.crossbowffs.waifupaper.utils.useNotNull
 
@@ -107,30 +107,26 @@ class SceneManager(private val context: Context, private val engine: GLEngine2) 
         val data = preferences.getString(PrefConsts.PREF_MODEL_NAME, null)?.split(':')
         val name = data?.get(0) ?: "Epsilon"
         val location = data?.get(1).useNotNull { FileLocation.valueOf(it) } ?: FileLocation.INTERNAL
-        (object : AsyncTask<Unit, Unit, Unit>() {
-            override fun doInBackground(vararg params: Unit?) {
-                val newModelInfo = AssetLoader.loadModelInfo(context, name, location)
-                val newModelData = AssetLoader.loadModel(context, newModelInfo)
-                val soundPool = AssetLoader.loadSounds(context, newModelInfo)
-                engine.queueEvent(Runnable {
-                    renderer.setModel(newModelData)
-                    renderer.setSoundPool(soundPool)
-                })
+        async() {
+            val newModelInfo = AssetLoader.loadModelInfo(context, name, location)
+            val newModelData = AssetLoader.loadModel(context, newModelInfo)
+            val soundPool = AssetLoader.loadSounds(context, newModelInfo)
+            engine.queueEvent {
+                renderer.setModel(newModelData)
+                renderer.setSoundPool(soundPool)
             }
-        }).execute()
+        }
     }
 
     fun updateSelectedBackground() {
         // TODO
         val name = "back_class_normal.png"
         val location = FileLocation.INTERNAL
-        (object : AsyncTask<Unit, Unit, Unit>() {
-            override fun doInBackground(vararg params: Unit?) {
-                val background = AssetLoader.loadBackground(context, name, location)
-                engine.queueEvent(Runnable {
-                    renderer.setBackground(background)
-                })
+        async() {
+            val background = AssetLoader.loadBackground(context, name, location)
+            engine.queueEvent {
+                renderer.setBackground(background)
             }
-        }).execute()
+        }
     }
 }
